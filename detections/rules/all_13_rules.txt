@@ -1,0 +1,447 @@
+═══════════════════════════════════════════════════════════════════════════
+  PHASE 2: TẠO DETECTION RULES — 100% Kibana Web UI
+  Path: ☰ → Security → Rules → Detection rules
+═══════════════════════════════════════════════════════════════════════════
+
+
+NAVIGATION (cho tất cả rules):
+  1. Click ☰ (hamburger menu)
+  2. Click "Security" (trong phần Solutions)
+  3. Click "Rules" (sidebar trái)
+  4. Click "Detection rules" (hoặc đã ở đây)
+  5. Click nút [Create new rule] (góc phải trên, nút màu xanh)
+
+
+═══════════════════════════════════════════════════════════════════════════
+ RULE 1 of 13: Phase 1 — io_uring_setup Chokepoint
+ Rule Type: Custom query (KQL)
+═══════════════════════════════════════════════════════════════════════════
+
+  ── SCREEN 1: Define rule ──
+
+  1. Chọn Rule type: ○ Custom query   ← Click cái này
+                     ○ Machine Learning
+                     ○ Threshold
+                     ○ Event Correlation
+                     ○ Indicator Match
+                     ○ New terms
+                     ○ ES|QL
+                     ○ Saved Query
+
+  2. Source:
+     Index patterns: [ auditbeat-* ]
+     → Click ô "Index patterns", xóa default, gõ: auditbeat-*
+     → Nếu không thấy suggest → gõ xong nhấn Enter
+
+  3. Custom query (KQL):
+     ┌─────────────────────────────────────────────────────────────┐
+     │ auditd.data.syscall:"io_uring_setup" AND NOT               │
+     │ process.executable:("/usr/sbin/nginx" OR                    │
+     │ "/usr/bin/postgres" OR "/usr/bin/fio")                      │
+     └─────────────────────────────────────────────────────────────┘
+     → Copy-paste vào ô query
+
+  4. Click [Preview results] (phía dưới query box)
+     → Nếu thấy kết quả = query đúng
+     → Nếu 0 results = bình thường (chưa chạy attack)
+
+  5. Click nút [Continue] (góc phải dưới)
+
+  ── SCREEN 2: About rule ──
+
+  6. Name (bắt buộc):
+     [Purple Team] Phase 1 — io_uring_setup Chokepoint
+
+  7. Description:
+     Detects io_uring_setup() syscall — the MANDATORY chokepoint
+     that every io_uring evasion toolkit must call before any
+     async operations become invisible to syscall monitors.
+     Maps to phase1_init() in evasion_ops.c.
+
+  8. Severity: Click dropdown → chọn "High"
+
+  9. Risk score: Kéo slider đến 73 (hoặc gõ 73 vào ô)
+
+  10. Expand "Advanced settings" (click mũi tên ▶):
+
+      → MITRE ATT&CK threats: Click [Add MITRE ATT&CK threat]
+         Tactic:    Defense Evasion
+         Technique: Rootkit (T1014)
+
+      → Tags: Click vào ô Tags, gõ từng tag rồi nhấn Enter:
+         io_uring
+         T1014
+         Defense Evasion
+         Phase1
+         Purple-Team
+
+  11. Click [Continue]
+
+  ── SCREEN 3: Schedule rule ──
+
+  12. Runs every:                 1    minute   (đổi từ 5 → 1)
+      Additional look-back time:  1    minute   (đổi từ 1 → 1)
+
+  13. Click [Continue]
+
+  ── SCREEN 4: Rule actions (optional) ──
+
+  14. Bỏ qua (hoặc add Slack/Email notification nếu muốn)
+  15. Click [Create & enable rule]
+
+  ✅ Rule 1 DONE! → Bạn sẽ thấy rule page hiện "Active"
+  📸 Screenshot màn hình này cho thesis!
+
+
+═══════════════════════════════════════════════════════════════════════════
+ RULE 2 of 13: LD_PRELOAD Injection
+ Rule Type: Event Correlation (EQL)  ← KHÁC rule 1!
+═══════════════════════════════════════════════════════════════════════════
+
+  1. Quay lại: Security → Rules → [Create new rule]
+
+  ── SCREEN 1: Define rule ──
+
+  2. Chọn Rule type: ○ Event Correlation   ← CLICK CÁI NÀY (không phải Custom query)
+
+  3. Index patterns: [ logs-endpoint.* ]
+
+  4. EQL query:
+     ┌─────────────────────────────────────────────────────────────┐
+process where event.type == "start" and process.env_vars : "LD_PRELOAD=*" and not process.env_vars : ("*libfakeroot*",*libjemalloc*", "*libasan*", "*libtsan*")
+     └─────────────────────────────────────────────────────────────┘
+
+  5. [Continue]
+
+  ── SCREEN 2: About rule ──
+
+  6. Name:        [Purple Team] LD_PRELOAD Shared Library Injection
+  7. Description: Detects LD_PRELOAD with non-standard libraries.
+                  Maps to 13 hooked glibc functions in evasion_hooks.so.
+  8. Severity:    Critical
+  9. Risk score:  99
+  10. MITRE:      Defense Evasion → T1574.006
+                  (Hijack Execution Flow: Dynamic Linker Hijacking)
+  11. Tags:       LD_PRELOAD, T1574.006, Defense Evasion, Purple-Team
+
+  12. [Continue]
+
+  ── SCREEN 3: Schedule ──
+  13. Every 1 min, look-back 1 min
+  14. [Continue] → [Create & enable rule]
+
+  ✅ Rule 2 DONE!
+
+
+═══════════════════════════════════════════════════════════════════════════
+ RULE 3 of 13: LD_AUDIT Interception
+ Rule Type: Event Correlation (EQL)
+═══════════════════════════════════════════════════════════════════════════
+
+  Rule type:  Event Correlation
+  Index:      logs-endpoint.*
+  EQL query:
+  ┌───────────────────────────────────────────────────────────────┐
+process where event.type == "start" and process.env_vars : "LD_AUDIT=*"
+  └───────────────────────────────────────────────────────────────┘
+
+  Name:       [Purple Team] LD_AUDIT Linker-Level Interception
+  Severity:   Critical | Risk: 99
+  MITRE:      Defense Evasion → T1574.006
+  Tags:       LD_AUDIT, T1574.006, Defense Evasion, Purple-Team
+  Schedule:   Every 1 min
+
+
+═══════════════════════════════════════════════════════════════════════════
+ RULE 4 of 13: /etc/ld.so.preload Persistence
+ Rule Type: Custom query (KQL)   ← Quay lại KQL
+═══════════════════════════════════════════════════════════════════════════
+
+  Rule type:  Custom query
+  Index:      auditbeat-*
+  KQL query:
+  ┌───────────────────────────────────────────────────────────────┐
+file.path:"/etc/ld.so.preload" AND (event.action:"updated" OR event.action:"created" OR auditd.data.key:"ld_preload_persist")
+  └───────────────────────────────────────────────────────────────┘
+
+  Name:       [Purple Team] Persistence — ld.so.preload Modified
+  Severity:   Critical | Risk: 99
+  MITRE:      Persistence (TA0003) → T1574.006
+  Tags:       Persistence, T1574.006, Phase-Persist, Purple-Team
+  Schedule:   Every 1 min
+
+
+═══════════════════════════════════════════════════════════════════════════
+ RULE 5 of 13: Phase 3a REAPER — Tracing Disabled
+ Rule Type: Custom query (KQL)
+═══════════════════════════════════════════════════════════════════════════
+
+  Rule type:  Custom query
+  Index:      auditbeat-*, logs-endpoint.*    ← HAI index, cách nhau bằng comma
+  KQL query:
+  ┌───────────────────────────────────────────────────────────────┐
+file.path:/sys/kernel/debug/tracing/* AND (event.action:"updated" OR event.action:"opened-for-modify")                              │
+  └───────────────────────────────────────────────────────────────┘
+
+  Name:       [Purple Team] Phase 3a REAPER — Tracing Disabled
+  Severity:   Critical | Risk: 99
+  MITRE:      Defense Evasion → T1562.001 (Impair Defenses)
+  Tags:       REAPER, T1562.001, Phase3a, Purple-Team
+
+
+═══════════════════════════════════════════════════════════════════════════
+ RULE 6 of 13: Phase 3b REAPER — BPF Maps Deleted
+ Rule Type: Custom query (KQL)
+═══════════════════════════════════════════════════════════════════════════
+
+  Rule type:  Custom query
+  Index:      auditbeat-*
+  KQL query:
+  ┌───────────────────────────────────────────────────────────────┐
+ file.path:/sys/fs/bpf/* AND event.action:"deleted"
+  └───────────────────────────────────────────────────────────────┘
+
+  Name:       [Purple Team] Phase 3b REAPER — BPF Maps Deleted
+  Severity:   Critical | Risk: 99
+  MITRE:      Defense Evasion → T1562.001
+  Tags:       REAPER, T1562.001, Phase3b, Purple-Team
+
+
+═══════════════════════════════════════════════════════════════════════════
+ RULE 7 of 13: Phase 3c REAPER — EDR Process Killed
+ Rule Type: Event Correlation (EQL)
+═══════════════════════════════════════════════════════════════════════════
+
+  Rule type:  Event Correlation
+  Index:      logs-endpoint.*
+  EQL query:
+  ┌───────────────────────────────────────────────────────────────┐
+ process where event.type == "end" and event.action == "end" and process.exit_code == -9                                    └───────────────────────────────────────────────────────────────┘
+
+  Name:       [Purple Team] Phase 3c REAPER — EDR Process Killed
+  Severity:   Critical | Risk: 99
+  MITRE:      Defense Evasion → T1562.001
+  Tags:       REAPER, T1562.001, Phase3c, Purple-Team
+
+
+═══════════════════════════════════════════════════════════════════════════
+ RULE 8 of 13: Phase 4c — Credential File Exfiltration
+ Rule Type: Event Correlation (EQL)
+═══════════════════════════════════════════════════════════════════════════
+
+  Rule type:  Event Correlation
+  Index:      logs-endpoint.*
+  EQL query:
+  ┌───────────────────────────────────────────────────────────────┐
+file where event.type == "access" and file.path in ("/etc/shadow", "/etc/ssh/sshd_config","/root/.bash_history", "/etc/sudoers", "/etc/crontab") and not process.executable in ("/usr/sbin/sshd","/bin/login", "/usr/bin/sudo", "/usr/bin/passwd")
+  └───────────────────────────────────────────────────────────────┘
+
+  Name:       [Purple Team] Phase 4c — Credential File Exfil
+  Severity:   High | Risk: 73
+  MITRE:      Credential Access (TA0006) → T1552.001
+  Tags:       Credential-Access, T1552.001, Phase4c, Purple-Team
+
+
+═══════════════════════════════════════════════════════════════════════════
+ RULE 9 of 13: Persistence — Shell Config Injection
+ Rule Type: Event Correlation (EQL)
+═══════════════════════════════════════════════════════════════════════════
+
+  Rule type:  Event Correlation
+  Index:      logs-endpoint.*, auditbeat-*
+  EQL query:
+  ┌───────────────────────────────────────────────────────────────┐
+ file where event.type in ("change", "creation") and file.path : "*/.bashrc" or file.path : "*/.profile") and not process.name in ("bash", "vim", "nano", "vi", "emacs", "code", "gedit")
+  └───────────────────────────────────────────────────────────────┘
+
+  Name:       [Purple Team] Persistence — Shell Config Injection
+  Severity:   High | Risk: 73
+  MITRE:      Persistence → T1546.004
+  Tags:       Persistence, T1546.004, Phase-Persist, Purple-Team
+
+
+═══════════════════════════════════════════════════════════════════════════
+ RULE 10 of 13: Phase 5 — Binary Self-Deletion
+ Rule Type: Event Correlation (EQL)
+═══════════════════════════════════════════════════════════════════════════
+
+  Rule type:  Event Correlation
+  Index:      logs-endpoint.*
+  EQL query:
+  ┌───────────────────────────────────────────────────────────────┐
+  │ file where event.type == "deletion" and  file.path == process.executable
+  └───────────────────────────────────────────────────────────────┘
+
+  Name:       [Purple Team] Phase 5 — Binary Self-Deletion
+  Severity:   Critical | Risk: 99
+  MITRE:      Defense Evasion → T1070.004 (Indicator Removal)
+  Tags:       Anti-Forensics, T1070.004, Phase5, Purple-Team
+
+
+
+═══════════════════════════════════════════════════════════════════════════
+ THRESHOLD RULES — Khác Custom/EQL ở chỗ có thêm phần "Threshold"
+ Dùng để đếm events rồi fire alert khi vượt ngưỡng
+═══════════════════════════════════════════════════════════════════════════
+
+
+═══════════════════════════════════════════════════════════════════════════
+ RULE 11 of 13: io_uring_enter Burst Detection
+ Rule Type: Threshold   ← CHỌN THRESHOLD (không phải Custom query)
+═══════════════════════════════════════════════════════════════════════════
+
+  1. ☰ → Security → Rules → [Create new rule]
+
+  ── SCREEN 1: Define rule ──
+
+  2. Chọn Rule type: ○ Threshold   ← CLICK CÁI NÀY
+
+     ┌─────────────────────────────────────────────────────────────┐
+     │ Khi chọn Threshold, form sẽ THÊM 2 ô:                     │
+     │                                                              │
+     │ "Group by" → field để group (ví dụ: process.pid)            │
+     │ "Threshold" → số lượng tối thiểu để fire alert              │
+     └─────────────────────────────────────────────────────────────┘
+
+  3. Index patterns: [ auditbeat-* ]
+
+  4. KQL query:
+     ┌───────────────────────────────────────────────────────────────┐
+   auditd.data.syscall:"io_uring_enter" AND NOT process.executable:("/usr/sbin/nginx" OR "/usr/bin/postgres" OR "/usr/bin/fio")                        │
+     └───────────────────────────────────────────────────────────────┘
+
+  5. ⬇️ PHẦN THRESHOLD (bên dưới query box):
+
+     ┌───────────────────────────────────────────────────────────────┐
+     │ Group by:    [ process.pid ]                                   │
+     │              → Click ô, gõ "process.pid", chọn từ dropdown    │
+     │                                                                 │
+     │ Threshold:   [ >= 50 ]                                         │
+     │              → Gõ 50 vào ô số                                  │
+     │                                                                 │
+     │ Ý nghĩa: Nếu 1 PID gọi io_uring_enter >= 50 lần              │
+     │          trong 1 window → fire alert                           │
+     └───────────────────────────────────────────────────────────────┘
+
+  6. [Continue]
+
+  ── SCREEN 2: About rule ──
+
+  7. Name:       [Purple Team] Phase 4 — io_uring_enter Burst
+  8. Severity:   High | Risk: 73
+  9. MITRE:      Collection (TA0009) → T1005 (Data from Local System)
+  10. Tags:      io_uring, T1005, Phase4, Purple-Team
+
+  ── SCREEN 3: Schedule ──
+  11. Every 1 min, look-back 2 min   ← look-back 2 min (quan trọng cho threshold)
+  12. [Create & enable rule]
+
+
+═══════════════════════════════════════════════════════════════════════════
+ RULE 12 of 13: REAPER Attack Chain Correlation
+ Rule Type: Threshold
+ ⚠️ QUAN TRỌNG: Rule này query ALERT INDEX, không phải data index!
+═══════════════════════════════════════════════════════════════════════════
+
+  1. [Create new rule] → Threshold
+
+  ── SCREEN 1: Define rule ──
+
+  2. Index patterns:
+     ┌───────────────────────────────────────────────────────────────┐
+     │ .alerts-security.alerts-default                                │
+     │                                                                 │
+     │ ⚠️ ĐÂY LÀ ALERT INDEX — chứa alerts từ rules đã tạo          │
+     │    KHÔNG PHẢI auditbeat-* hay logs-endpoint.*                  │
+     │                                                                 │
+     │ Nếu không thấy trong dropdown:                                  │
+     │   → Bỏ tick "Only show data views" (nếu có)                   │
+     │   → Gõ tay: .alerts-security.alerts-default                    │
+     │   → Nhấn Enter để confirm                                      │
+     └───────────────────────────────────────────────────────────────┘
+
+  3. KQL query:
+     ┌───────────────────────────────────────────────────────────────┐
+     │ kibana.alert.rule.tags:("Phase3a" OR "Phase3b" OR "Phase3c" OR "REAPER")                                        │
+     └───────────────────────────────────────────────────────────────┘
+
+     → Query trên alert index: tìm alerts có tag REAPER
+
+  4. Threshold settings:
+     ┌───────────────────────────────────────────────────────────────┐
+     │ Group by:    [ host.name ]     ← group by host               │
+     │ Threshold:   [ >= 2 ]          ← 2+ REAPER alerts = chain    │
+     └───────────────────────────────────────────────────────────────┘
+
+  5. [Continue]
+
+  ── SCREEN 2: About rule ──
+  6. Name:       [Purple Team] REAPER Attack Chain Correlation
+  7. Severity:   Critical | Risk: 99
+  8. MITRE:      Defense Evasion → T1562.001
+  9. Tags:       REAPER-Chain, T1562.001, Correlation, Purple-Team
+
+  ── SCREEN 3: Schedule ──
+  10. Every: 5 min            ← 5 min (không phải 1 min)
+      Look-back: 6 min        ← 6 min (overlap 1 min)
+  11. [Create & enable rule]
+
+
+═══════════════════════════════════════════════════════════════════════════
+ RULE 13 of 13: DOUBLE EVASION Correlation
+ Rule Type: Threshold
+ ⚠️ Cũng query ALERT INDEX
+═══════════════════════════════════════════════════════════════════════════
+
+  1. [Create new rule] → Threshold
+
+  2. Index: .alerts-security.alerts-default
+
+  3. KQL query:
+     ┌───────────────────────────────────────────────────────────────┐
+kibana.alert.rule.tags:("io_uring" OR "LD_PRELOAD" OR "LD_AUDIT") AND kibana.alert.rule.tags:"Purple-Team"
+     └───────────────────────────────────────────────────────────────┘
+
+  4. Threshold:
+     ┌───────────────────────────────────────────────────────────────┐
+     │ Group by:    [ host.name ]                                     │
+     │ Threshold:   [ >= 2 ]                                          │
+     │                                                                 │
+     │ Ý nghĩa: Nếu cùng 1 host có alert io_uring VÀ LD_PRELOAD    │
+     │ → DOUBLE EVASION confirmed!                                    │
+     └───────────────────────────────────────────────────────────────┘
+
+  5. Name:       [Purple Team] DOUBLE EVASION — io_uring + LD_PRELOAD
+  6. Severity:   Critical | Risk: 99
+  7. Tags:       Double-Evasion, Correlation, Purple-Team
+  8. Schedule:   Every 5 min, look-back 11 min
+  9. [Create & enable rule]
+
+
+═══════════════════════════════════════════════════════════════════════════
+ VERIFY: Tất cả 13 rules đã tạo
+═══════════════════════════════════════════════════════════════════════════
+
+  1. ☰ → Security → Rules → Detection rules
+  2. Ô Search → gõ: Purple-Team → Enter
+  3. Phải thấy 13 rules với status "Active" (icon xanh)
+
+  ┌─────────────────────────────────────────────────────────────────────┐
+  │ #   │ Rule Name                                   │ Type      │ ✅ │
+  │─────┼─────────────────────────────────────────────┼───────────┼────│
+  │  1  │ Phase 1 — io_uring_setup Chokepoint         │ Custom    │ ✅ │
+  │  2  │ LD_PRELOAD Shared Library Injection          │ EQL       │ ✅ │
+  │  3  │ LD_AUDIT Linker-Level Interception           │ EQL       │ ✅ │
+  │  4  │ Persistence — ld.so.preload Modified         │ Custom    │ ✅ │
+  │  5  │ Phase 3a REAPER — Tracing Disabled           │ Custom    │ ✅ │
+  │  6  │ Phase 3b REAPER — BPF Maps Deleted           │ Custom    │ ✅ │
+  │  7  │ Phase 3c REAPER — EDR Process Killed         │ EQL       │ ✅ │
+  │  8  │ Phase 4c — Credential File Exfil             │ EQL       │ ✅ │
+  │  9  │ Persistence — Shell Config Injection         │ EQL       │ ✅ │
+  │ 10  │ Phase 5 — Binary Self-Deletion               │ EQL       │ ✅ │
+  │ 11  │ Phase 4 — io_uring_enter Burst               │ Threshold │ ✅ │
+  │ 12  │ REAPER Attack Chain Correlation              │ Threshold │ ✅ │
+  │ 13  │ DOUBLE EVASION — io_uring + LD_PRELOAD       │ Threshold │ ✅ │
+  └─────────────────────────────────────────────────────────────────────┘
+
+  📸 SCREENSHOT màn hình này cho Chapter 5 của thesis!

@@ -1,0 +1,17 @@
+# Binaries and libraries
+*.so
+*.o
+evasion_ops
+evasion_hooks.so
+
+# Media and large files (use Git LFS or Releases for demo.mp4)
+*.mp4
+*.mkv
+*.avi
+
+# Temp files
+*~
+~$*
+*.tmp
+.DS_Store
+Thumbs.db

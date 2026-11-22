@@ -1,0 +1,58 @@
+
+═══════════════════════════════════════════════════════════════════════════
+  FIX: ML Job sensitive-file-access-anomaly = 0 records
+═══════════════════════════════════════════════════════════════════════════
+
+  Nguyên nhân: Job query filter quá chặt hoặc sai index
+
+  CÁCH CHECK:
+  1. ☰ → Machine Learning → Anomaly Detection
+  2. Click "sensitive-file-access-anomaly"
+  3. Click tab "Job settings" (hoặc ⚙️ icon)
+  4. Xem "Datafeed" section:
+     → Check "Indices": phải là logs-endpoint.*
+     → Check "Query": xem filter JSON
+
+  5. Verify data tồn tại:
+     → ☰ → Discover → chọn Data View: logs-endpoint.*
+     → Search:
+     ┌────────────────────────────────────────────────────────────┐
+     │ file.path:("/etc/shadow" OR "/etc/ssh/sshd_config" OR     │
+     │ "/root/.bash_history" OR "/etc/sudoers")                   │
+     └────────────────────────────────────────────────────────────┘
+     → Time range: Last 7 days
+
+  6a. Nếu Discover CÓ kết quả nhưng ML = 0:
+      → Datafeed query sai field name
+      → Fix: Stop datafeed → Edit job → sửa query → restart
+
+      ☰ → ML → Anomaly Detection
+      → Click ⚙️ bên cạnh job → "Edit job"
+      → Sửa datafeed query thành:
+      {
+        "bool": {
+          "must": [
+            {
+              "terms": {
+                "file.path": [
+                  "/etc/shadow",
+                  "/etc/ssh/sshd_config",
+                  "/root/.bash_history",
+                  "/etc/sudoers"
+                ]
+              }
+            }
+          ]
+        }
+      }
+      → Đảm bảo indices = logs-endpoint.*
+      → Save → Restart datafeed
+
+  6b. Nếu Discover CŨNG 0 kết quả:
+      → Elastic Defend không log file access events cho system files
+      → Đây là limitation — BÌNH THƯỜNG
+      → Bạn có thể bỏ job này (2 jobs còn lại đủ cho thesis)
+
+  7. HOẶC: Nếu không muốn mất thời gian fix
+     → Bỏ job này, thesis vẫn đủ mạnh với 2 ML jobs
+

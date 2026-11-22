@@ -1,0 +1,1085 @@
+THESIS DEFENCE PRESENTATION SCRIPT
+
+Slide-by-Slide Practice Guide
+
+Total: 27 Slides | Target: 20–25 minutes + 10 min Q&A
+
+Author: DO DINH HUY HOANG | MSc Cybersecurity
+
+⏱️ TIMING OVERVIEW
+
+SectionSlidesTimeCumulativeOpening + Problem1–43 min3 minBackground (EDR + LD_PRELOAD + RingReaper)5–94 min7 minMethodology + Scenarios10–112 min9 minRed Team (Attack Chain)12–175 min14 minACTION vs EFFECT + Detection18–192 min16 minResults (3 Scenarios)20–224 min20 minConclusion + Q&A23–243 min23 minBackup slides25–270 min(reserve)TOTAL24 active~23 min
+
+SectionSlidesTimeCumulative
+
+Section
+
+Slides
+
+Time
+
+Cumulative
+
+Opening + Problem1–43 min3 min
+
+Opening + Problem
+
+1–4
+
+3 min
+
+3 min
+
+Background (EDR + LD_PRELOAD + RingReaper)5–94 min7 min
+
+Background (EDR + LD_PRELOAD + RingReaper)
+
+5–9
+
+4 min
+
+7 min
+
+Methodology + Scenarios10–112 min9 min
+
+Methodology + Scenarios
+
+10–11
+
+2 min
+
+9 min
+
+Red Team (Attack Chain)12–175 min14 min
+
+Red Team (Attack Chain)
+
+12–17
+
+5 min
+
+14 min
+
+ACTION vs EFFECT + Detection18–192 min16 min
+
+ACTION vs EFFECT + Detection
+
+18–19
+
+2 min
+
+16 min
+
+Results (3 Scenarios)20–224 min20 min
+
+Results (3 Scenarios)
+
+20–22
+
+4 min
+
+20 min
+
+Conclusion + Q&A23–243 min23 min
+
+Conclusion + Q&A
+
+23–24
+
+3 min
+
+23 min
+
+Backup slides25–270 min(reserve)
+
+Backup slides
+
+25–27
+
+0 min
+
+(reserve)
+
+TOTAL24 active~23 min
+
+TOTAL
+
+24 active
+
+~23 min
+
+═══════════════════════════════════════════
+
+SLIDE 1 — Title Slide
+
+⏱️ 30 seconds
+
+═══════════════════════════════════════════
+
+🎤 SAY:
+
+"Good [morning/afternoon], my name is Do Dinh Huy Hoang. Today I will present my MSc thesis: Evading Linux EDRs Through io_uring and LD_PRELOAD — a Red Team approach to syscall-less attack chains with Purple Team detection.
+
+This research addresses a fundamental architectural blind spot in how Linux security tools monitor system activity."
+
+💡 TIPS:
+
+- Make eye contact with panel
+
+- Speak slowly — this is your first impression
+
+- Pause briefly after "blind spot" for emphasis
+
+➡️ TRANSITION:
+
+"Let me start with the roadmap of today's presentation."
+
+═══════════════════════════════════════════
+
+SLIDE 2 — Presentation Roadmap
+
+⏱️ 30 seconds
+
+═══════════════════════════════════════════
+
+🎤 SAY:
+
+"I've structured my presentation into seven sections:
+
+First, I'll introduce the problem — why current Linux EDRs have an architectural blind spot.
+
+Then I'll cover the background — eBPF, LD_PRELOAD, and the RingReaper malware that validates our threat model.
+
+Next, my methodology — a Purple Team framework with three privilege-level scenarios.
+
+The core of my presentation covers the Red Team implementation — a 1,200+ line C toolkit — followed by the Blue Team detection framework with 13 custom rules.
+
+Finally, results across three scenarios, and my conclusions."
+
+💡 TIPS:
+
+- Point to each section as you mention it
+
+- Don't read — just name the sections naturally
+
+- Keep it brief — this is just orientation
+
+➡️ TRANSITION:
+
+"So, what exactly is the problem?"
+
+═══════════════════════════════════════════
+
+SLIDE 3 — The Problem
+
+⏱️ 1 minute 30 seconds ⭐⭐⭐ KEY SLIDE
+
+═══════════════════════════════════════════
+
+🎤 SAY:
+
+"Every major Linux EDR — Elastic Defend, CrowdStrike Falcon, SentinelOne — depends on eBPF probes attached to the kernel syscall table.
+
+The critical assumption is: every useful I/O operation must pass through the syscall dispatch table.
+
+io_uring, introduced in Linux 5.1 in 2019, invalidates this assumption.
+
+io_uring uses kernel worker threads called io-wq to perform I/O operations. These threads bypass the syscall table entirely. File reads, network connections, file deletions — all happen with ZERO events in strace, auditd, Falco, or any eBPF-based monitoring tool.
+
+This isn't theoretical. Google banned io_uring on Android and ChromeOS because 60% of kernel vulnerability submissions involved io_uring. And in 2025, RingReaper became the first real-world malware weaponising io_uring for EDR evasion.
+
+The question is: can we exploit this blind spot, and more importantly, can we detect it?"
+
+💡 TIPS:
+
+- Emphasise "invalidates this assumption" — this is the core problem
+
+- Pause after "ZERO events" — let it sink in
+
+- RingReaper mention creates urgency — "this isn't theoretical"
+
+➡️ TRANSITION:
+
+"This leads to our research aim and five objectives."
+
+═══════════════════════════════════════════
+
+SLIDE 4 — Research Aim & Objectives
+
+⏱️ 1 minute
+
+═══════════════════════════════════════════
+
+🎤 SAY:
+
+"Our aim is to design, implement, and validate an advanced Linux EDR evasion framework, and then develop a comprehensive detection framework.
+
+We have five objectives:
+
+Objective 1: Develop a 10-step attack chain combining LD_PRELOAD with io_uring, mapped to the MITRE ATT&CK framework.
+
+Objective 2: Validate evasion across three privilege-level scenarios — from unprivileged user to root.
+
+Objective 3: Create a detection engineering framework with 13 custom rules and 3 machine learning anomaly detection jobs.
+
+Objective 4: Perform critical analysis — specifically, the Phase 3 differential detection and the ACTION versus EFFECT boundary.
+
+Objective 5: Deliver a reproducible, open-source toolkit and benchmark dataset."
+
+💡 TIPS:
+
+- Don't read every detail — hit the key number for each objective
+
+- Hold up fingers (1-5) if comfortable
+
+- Emphasis on "ACTION versus EFFECT" — preview your main theoretical contribution
+
+➡️ TRANSITION:
+
+"To understand why this works, let me first explain how Linux EDRs monitor system activity."
+
+═══════════════════════════════════════════
+
+SLIDE 5 — How Linux EDRs Work (Part 1)
+
+⏱️ 45 seconds
+
+═══════════════════════════════════════════
+
+🎤 SAY:
+
+"In the traditional path, when an application calls read(), write(), or connect(), these pass through the syscall table. EDR agents attach eBPF hooks here, intercepting every operation and forwarding telemetry to the SIEM.
+
+This works perfectly — as long as every operation goes through the syscall table.
+
+But what happens when it doesn't?"
+
+💡 TIPS:
+
+- Trace the flow diagram with your hand or pointer
+
+- Build suspense — "as long as..."
+
+- End with a question to hook the audience
+
+➡️ TRANSITION:
+
+"This is where io_uring changes everything."
+
+═══════════════════════════════════════════
+
+SLIDE 6 — How Linux EDRs Work (Part 2 — io_uring bypass)
+
+⏱️ 1 minute ⭐⭐⭐ KEY SLIDE
+
+═══════════════════════════════════════════
+
+🎤 SAY:
+
+"This diagram shows the io_uring architecture. Instead of making individual syscalls, the application places I/O requests into a Submission Queue — a shared ring buffer.
+
+The kernel picks these up using its own worker threads, called io-wq, executes the operations, and places results into the Completion Queue.
+
+The critical point is: these kernel worker threads never pass through the syscall dispatch table. The eBPF hooks that EDRs rely on are attached to the syscall table — so they see nothing.
+
+Only two syscalls are visible: io_uring_setup — to initialise the ring buffer — and io_uring_enter — to submit batches. But the actual file reads, network connections, and deletions are completely invisible.
+
+I call this the EDR Blind Zone."
+
+💡 TIPS:
+
+- Point to SQ → Kernel → CQ flow in the diagram
+
+- Emphasise "never pass through the syscall dispatch table"
+
+- "EDR Blind Zone" — say it clearly, it's a memorable phrase
+
+➡️ TRANSITION:
+
+"Now, io_uring hides operations from EDR. But what about hiding from human administrators?"
+
+═══════════════════════════════════════════
+
+SLIDE 7 — LD_PRELOAD (Part 1)
+
+⏱️ 1 minute
+
+═══════════════════════════════════════════
+
+🎤 SAY:
+
+"LD_PRELOAD is the second layer of our evasion framework.
+
+It instructs the dynamic linker to load a malicious shared library before libc, allowing us to override standard glibc functions.
+
+Here's how it works: When an administrator runs ls /tmp/, the dynamic linker loads our evasion_hooks.so first. Our hooked readdir() function filters out malicious filenames — like evil.so and evasion_ops — then calls the real readdir() underneath.
+
+The result: the administrator sees a clean directory listing. The malicious files are invisible.
+
+We hook 13 glibc functions — covering ls, find, stat, cat, test, Python's os.path — essentially every tool an administrator might use to inspect the filesystem."
+
+💡 TIPS:
+
+- Walk through the hooking flow step by step
+
+- "13 glibc functions" — emphasise the comprehensiveness
+
+- This is the "double evasion" concept: EDR blind + admin blind
+
+➡️ TRANSITION:
+
+"Slide 8 shows the actual source code implementation."
+
+═══════════════════════════════════════════
+
+SLIDE 8 — LD_PRELOAD (Part 2 — Code)
+
+⏱️ 30 seconds
+
+═══════════════════════════════════════════
+
+🎤 SAY:
+
+"This is the actual C source code for four of our hooks. As you can see, each hook checks if the filename matches one of our hidden files. If it does, it returns a fake 'not found' result. Otherwise, it passes through to the real glibc function.
+
+The implementation is straightforward — approximately 20 lines per hook — but the evasion effect is comprehensive."
+
+💡 TIPS:
+
+- Don't explain every line — just the pattern
+
+- Point to the key part: "if filename matches → skip"
+
+- Keep it brief — code slides should be quick
+
+➡️ TRANSITION:
+
+"Our research isn't purely theoretical. In 2025, RingReaper validated this exact threat model."
+
+═══════════════════════════════════════════
+
+SLIDE 9 — RingReaper Comparison
+
+⏱️ 1 minute
+
+═══════════════════════════════════════════
+
+🎤 SAY:
+
+"RingReaper, discovered in 2025, is the first documented real-world malware that weaponises io_uring for EDR evasion. It independently validates our thesis's threat model.
+
+This comparison table shows the overlap — and the differences.
+
+Both RingReaper and our toolkit use io_uring for credential collection, network C2, and file reconnaissance.
+
+But our toolkit goes significantly further: we add 13 LD_PRELOAD hooks for file artefact hiding, a complete REAPER module for kernel defence suppression, three persistence mechanisms, and — critically — a full detection framework, which RingReaper doesn't provide.
+
+The convergence between academic research and real-world malware strengthens the practical relevance of this thesis."
+
+💡 TIPS:
+
+- Highlight ✅ vs ❌ differences in the table
+
+- "Goes significantly further" — position your work as superior
+
+- The RingReaper validation is a STRONG selling point
+
+➡️ TRANSITION:
+
+"Now let me explain our research methodology."
+
+═══════════════════════════════════════════
+
+SLIDE 10 — Methodology
+
+⏱️ 1 minute
+
+═══════════════════════════════════════════
+
+🎤 SAY:
+
+"We adopted a Purple Team methodology — combining Red Team attack implementation with Blue Team detection engineering in an iterative cycle.
+
+The cycle works in four phases:
+
+- Red Team Planning — research and implement attack techniques
+
+- Red Team Execution — deploy in our instrumented lab and capture telemetry
+
+- Blue Team Analysis — analyse the telemetry, identify blind spots
+
+- Purple Team Synthesis — create detection rules and ML models, then feed findings back
+
+Our lab runs Ubuntu 22.04 LTS with Elasticsearch 9.5.5, Kibana, Elastic Defend as our EDR, and Auditbeat for syscall auditing."
+
+💡 TIPS:
+
+- Trace the circular flow with your hand
+
+- Emphasise "iterative cycle" — this is what makes it Purple Team
+
+- Keep lab specs brief — just name the key components
+
+➡️ TRANSITION:
+
+"We tested across three privilege-level scenarios."
+
+═══════════════════════════════════════════
+
+SLIDE 11 — Three Scenarios
+
+⏱️ 1 minute ⭐⭐⭐ KEY SLIDE
+
+═══════════════════════════════════════════
+
+🎤 SAY:
+
+"Our experimental design uses three scenarios representing a privilege escalation spectrum.
+
+Scenario 1 — an unprivileged user with no sudo access. This tests whether Unix DAC permissions alone can limit the attack. Result: REAPER is completely blocked by EPERM errors.
+
+Scenario 2 — a user with NOPASSWD sudo. This is the worst-case scenario for defenders — instant root access with no authentication event. All five attack phases succeed. 6 out of 13 rules fire, generating 72 alerts.
+
+Scenario 3 — a user with password-protected sudo. Same attack success as Scenario 2, but the password authentication generates additional USER_AUTH events — creating a richer audit trail for forensics.
+
+The key insight: privilege level is the primary factor determining both evasion success and detection coverage."
+
+💡 TIPS:
+
+- Point to each scenario column
+
+- Emphasise the contrast: Scenario 1 (blocked) vs Scenario 2 (full success)
+
+- "Worst-case scenario for defenders" — creates impact
+
+➡️ TRANSITION:
+
+"Now let's dive into the Red Team implementation — the attack chain itself."
+
+═══════════════════════════════════════════
+
+SLIDE 12 — 10-Step Attack Chain
+
+⏱️ 1 minute 30 seconds ⭐⭐⭐ KEY SLIDE
+
+═══════════════════════════════════════════
+
+🎤 SAY:
+
+"Our attack chain consists of 10 steps mapped to the MITRE ATT&CK framework, organised into five phases.
+
+Phase 1: Initialise io_uring and perform file I/O — creating our payload and reading system files.
+
+Phase 2: Establish a stealth C2 channel — all network operations go through io_uring, invisible to EDR.
+
+Phase 3 — this is our REAPER module — three sub-steps:
+
+- 3a: Disable kernel tracing — pure io_uring, completely invisible
+
+- 3b: Destroy eBPF maps — this uses a mixed implementation with opendir(), which creates a detectable syscall leak
+
+- 3c: Kill the EDR process — kill() is visible but indexed incorrectly
+
+Phase 4: Reconnaissance and credential exfiltration — reading /etc/shadow, sudoers, SSH keys — all through io_uring.
+
+Phase 5: Install persistence and self-destruct.
+
+The entire toolkit is 1,200+ lines of C with 13 LD_PRELOAD hooks and 10 io_uring helper functions, compiled into a single portable source file."
+
+💡 TIPS:
+
+- Phase 3 is the MOST IMPORTANT — spend extra time here
+
+- Emphasise the contrast: 3a (invisible) vs 3b (detectable) — this is a KEY FINDING
+
+- "1,200+ lines of C" — demonstrates significant engineering effort
+
+➡️ TRANSITION:
+
+"Let me show the architecture of this double evasion system."
+
+═══════════════════════════════════════════
+
+SLIDE 13 — Three-Layer Evasion Architecture
+
+⏱️ 45 seconds
+
+═══════════════════════════════════════════
+
+🎤 SAY:
+
+"Our toolkit implements three layers of evasion:
+
+Layer 1 — io_uring kernel bypass: 10 helper functions that replace 10 traditional syscalls. All I/O goes through kernel worker threads — EDR is completely blind.
+
+Layer 2 — LD_PRELOAD file hiding: 13 glibc hooks that intercept every filesystem inspection tool. Human administrators see nothing.
+
+Layer 3 — The attack logic itself, organised into five phases.
+
+The combination of Layer 1 and Layer 2 creates what I call Double Evasion — the EDR is blind, AND the administrator is blind, simultaneously."
+
+💡 TIPS:
+
+- "Double Evasion" is your signature term — say it with confidence
+
+- Point to each layer
+
+- Keep it brief — this is a summary slide
+
+➡️ TRANSITION:
+
+"Here are the 10 io_uring helper functions in detail."
+
+═══════════════════════════════════════════
+
+SLIDE 14 — io_uring Helpers (Table)
+
+⏱️ 45 seconds
+
+═══════════════════════════════════════════
+
+🎤 SAY:
+
+"Each of our 10 helper functions replaces one traditional syscall with an io_uring operation.
+
+For example, uring_open() replaces the openat() syscall, uring_read_file() replaces read(), and uring_connect() replaces the connect() syscall.
+
+The pattern is the same for each: get a submission queue entry, prepare the operation, submit it to the kernel, and wait for the completion queue result.
+
+The critical point from a detection perspective: strace captures ONLY io_uring_setup and io_uring_enter — the actual openat, read, write, connect operations are completely invisible."
+
+💡 TIPS:
+
+- Don't read every row — pick 3-4 examples
+
+- Emphasise the footer message about strace
+
+- Point to the "Replaces Syscall" column
+
+➡️ TRANSITION:
+
+"Slide 15 shows the source code for these helpers."
+
+═══════════════════════════════════════════
+
+SLIDE 15 — io_uring Helpers (Code)
+
+⏱️ 30 seconds
+
+═══════════════════════════════════════════
+
+🎤 SAY:
+
+"This is the implementation of three key helpers: uring_open, uring_close, and uring_unlink.
+
+Notice the pattern: get_sqe, prepare the operation with io_uring_prep_*, submit, wait for completion, and return the result.
+
+Each function is approximately 10-15 lines — simple but effective at bypassing the entire EDR monitoring infrastructure."
+
+💡 TIPS:
+
+- Quick slide — don't dwell on code
+
+- Just point to the pattern: "get_sqe → prep → submit → wait"
+
+- "Simple but effective" — powerful phrase
+
+➡️ TRANSITION:
+
+"Now let's see how the combined double evasion compares."
+
+═══════════════════════════════════════════
+
+SLIDE 16 — Double Evasion Comparison
+
+⏱️ 45 seconds
+
+═══════════════════════════════════════════
+
+🎤 SAY:
+
+"This table compares the three approaches: LD_PRELOAD alone, io_uring alone, and our combined double evasion.
+
+LD_PRELOAD alone hides files from administrators, but syscalls are still visible to EDR.
+
+io_uring alone makes operations invisible to EDR, but files are still visible to ls and find.
+
+Combined — we get maximum stealth: EDR blind AND administrator blind. Files are hidden from human inspection, and I/O operations are hidden from automated monitoring.
+
+As I quoted: Double Evasion — EDR blind, administrator blind, simultaneously."
+
+💡 TIPS:
+
+- Walk across the three columns
+
+- Build to the "Combined" column as the climax
+
+- Quote at the end — deliver with confidence
+
+➡️ TRANSITION:
+
+"Now, one of the most important findings — the Phase 3 differential analysis."
+
+═══════════════════════════════════════════
+
+SLIDE 17 — Phase 3 REAPER Differential
+
+⏱️ 1 minute 30 seconds ⭐⭐⭐ KEY SLIDE
+
+═══════════════════════════════════════════
+
+🎤 SAY:
+
+"This slide presents one of the central findings of this thesis.
+
+Phase 3 has three sub-phases, and they have dramatically different detection outcomes based on their implementation purity.
+
+Phase 3a — Disable Tracing: This is pure io_uring. It opens debugfs, writes '0' to tracing_on, and closes — all through io_uring. The result: zero syscalls, zero FIM events, completely invisible. Both the ACTION and the EFFECT are hidden.
+
+Phase 3b — Destroy BPF Maps: This is a mixed implementation. io_uring does not support getdents64 — the syscall needed for directory listing. So our code falls back to opendir() and readdir() — traditional syscalls. This creates a syscall leak. Combined with FIM events on bpffs, this generates 28 alerts. This is the ONLY phase where io_uring limitations force a detection opportunity.
+
+Phase 3c — Kill EDR Process: The kill() syscall is visible, but our Rule 7 queries logs-endpoint.* — which is empty because Elastic Defend doesn't log its own termination. So it's visible but not detected.
+
+The key insight: implementation purity determines evasion success. Pure io_uring is invisible. Mixed implementations leak."
+
+💡 TIPS:
+
+- This is YOUR key finding — take your time
+
+- 3a vs 3b contrast is CRITICAL — emphasise it
+
+- "io_uring does not support getdents64" — this is the technical root cause
+
+- Pause after "Mixed implementations leak"
+
+➡️ TRANSITION:
+
+"This leads to our central theoretical contribution: ACTION versus EFFECT."
+
+═══════════════════════════════════════════
+
+SLIDE 18 — ACTION vs EFFECT
+
+⏱️ 1 minute ⭐⭐⭐ KEY SLIDE
+
+═══════════════════════════════════════════
+
+🎤 SAY:
+
+"This is the central theoretical contribution of this thesis.
+
+io_uring hides the ACTION — the syscall execution — but it cannot hide the EFFECT — the filesystem changes and process state modifications.
+
+Let me walk through the table:
+
+Phase 1, io_uring_setup: The ACTION is always visible — this is a mandatory syscall that cannot be bypassed. This is our universal chokepoint.
+
+Phase 2, C2 network: Both ACTION and EFFECT are invisible — complete evasion.
+
+Phase 3b, BPF maps: The ACTION is partially visible due to the opendir() leak, and the EFFECT is detected by FIM on bpffs.
+
+Phase 5, ld.so.preload: The ACTION — writing the file — is invisible via io_uring. But the EFFECT — the file now exists on disk — is detectable through File Integrity Monitoring and process environment analysis.
+
+This framework explains why some phases are detectable and others are not, and it guides where defenders should focus: monitor EFFECTS, not just ACTIONS."
+
+💡 TIPS:
+
+- "Central theoretical contribution" — say it clearly
+
+- Repeat the quote: "ACTION hidden, EFFECT visible"
+
+- "Monitor EFFECTS, not just ACTIONS" — this is your recommendation
+
+➡️ TRANSITION:
+
+"Based on this framework, we developed 13 custom detection rules."
+
+═══════════════════════════════════════════
+
+SLIDE 19 — 13 Detection Rules
+
+⏱️ 1 minute
+
+═══════════════════════════════════════════
+
+🎤 SAY:
+
+"Our detection framework consists of 13 custom rules across four layers:
+
+Syscall Chokepoint Layer — Rules 1 and 11 target io_uring_setup and io_uring_enter. These are mandatory syscalls that io_uring CANNOT bypass.
+
+Filesystem Integrity Layer — Rules 4, 5, 6 use Auditbeat FIM to detect filesystem EFFECTS: modification of ld.so.preload, changes to debugfs tracing, and BPF map deletions.
+
+Process Environment Layer — Rule 2 detects LD_PRELOAD in process environment variables.
+
+Correlation Layer — Rules 12 and 13 combine multiple signals: the REAPER sequence and the Double Evasion pattern — io_uring_setup plus ld.so.preload modification within a 300-second window.
+
+Each rule specifies the KQL or EQL query, the data index, and the severity level — ready for production deployment."
+
+💡 TIPS:
+
+- Don't read every rule — group by layer
+
+- Emphasise "4 layers" — this is your detection architecture
+
+- "Ready for production deployment" — practical value
+
+➡️ TRANSITION:
+
+"Now let's see how these rules performed in our three scenarios."
+
+═══════════════════════════════════════════
+
+SLIDE 20 — Scenario 1 Results
+
+⏱️ 1 minute
+
+═══════════════════════════════════════════
+
+🎤 SAY:
+
+"Scenario 1 — unprivileged user. Only 3 to 4 rules fired, giving a detection rate of 25 to 31 percent.
+
+The key finding: REAPER is completely blocked. The user doesn't have root privileges, so Phase 3a, 3b, and 3c all fail with EPERM errors.
+
+Only Rule 1 — io_uring_setup — fires consistently, because this mandatory syscall occurs regardless of privilege level.
+
+The practical implication: standard Unix privilege isolation is the first line of defence against io_uring-based attacks. Without root access, the most dangerous phases are neutralised."
+
+💡 TIPS:
+
+- Quick slide — don't dwell on Scenario 1
+
+- Key message: "privilege isolation works"
+
+- Transition quickly to the critical Scenario 2
+
+➡️ TRANSITION:
+
+"Scenario 2 is the critical test — what happens when the attacker has root?"
+
+═══════════════════════════════════════════
+
+SLIDE 21 — Scenario 2 Results
+
+⏱️ 1 minute 30 seconds ⭐⭐⭐ KEY SLIDE
+
+═══════════════════════════════════════════
+
+🎤 SAY:
+
+"Scenario 2 — NOPASSWD sudo — is our critical test case.
+
+6 out of 13 rules fired, generating 72 alerts — a detection rate of 46 percent.
+
+Let me highlight what was detected — and what wasn't:
+
+Detected: Rule 1 generated 26 alerts for io_uring_setup — our chokepoint. Rule 6 generated 28 alerts for BPF map deletion — the mixed implementation leak. Rules 2 and 4 caught LD_PRELOAD injection and ld.so.preload modification. Rule 11 caught io_uring_enter burst. And Rule 13 correlated the Double Evasion pattern.
+
+NOT detected: Phase 3a — pure io_uring tracing disable — zero alerts. Phase 3c — EDR kill — wrong index issue. Phase 4c — credential exfiltration — io_uring reads are completely invisible.
+
+Plus, Elastic Defend generated 2 built-in alerts for privilege escalation and shared object injection — showing that the existing rule base has some coverage.
+
+46 percent means the attacker is operating in the dark for over half the attack chain — but our framework still generates 72 alerts, which is enough for a skilled SOC analyst to investigate."
+
+💡 TIPS:
+
+- This is the CRITICAL results slide — take your time
+
+- Walk through detected vs not detected
+
+- "72 alerts — enough for investigation" — positive framing
+
+- "Operating in the dark for over half" — honest assessment
+
+➡️ TRANSITION:
+
+"Scenario 3 adds an important forensic dimension."
+
+═══════════════════════════════════════════
+
+SLIDE 22 — Scenario 3 Results
+
+⏱️ 1 minute
+
+═══════════════════════════════════════════
+
+🎤 SAY:
+
+"Scenario 3 uses password-protected sudo. The detection rate is the same 46 percent — the same 6 rules fire.
+
+But there's a critical difference: USER_AUTH events.
+
+In Scenario 2 with NOPASSWD, no authentication event is generated — the attacker gets root silently.
+
+In Scenario 3, every sudo invocation generates a USER_AUTH event. Failed password attempts generate USER_AUTH FAILED events — in our test, three failed attempts before success.
+
+This creates a richer audit trail for forensic investigation: who, when, how many attempts, success or failure.
+
+Our recommendation: eliminate NOPASSWD:ALL from production environments. Even when the attacker knows the password, the authentication events provide critical forensic evidence and enable early warning through failed authentication monitoring."
+
+💡 TIPS:
+
+- Compare Scenario 2 (absent) vs Scenario 3 (present) in the table
+
+- Emphasise "USER_AUTH FAILED" — early warning
+
+- The recommendation is practical and actionable
+
+➡️ TRANSITION:
+
+"Let me wrap up with conclusions, limitations, and future work."
+
+═══════════════════════════════════════════
+
+SLIDE 23 — Conclusion, Limitations & Future Work
+
+⏱️ 1 minute 30 seconds
+
+═══════════════════════════════════════════
+
+🎤 SAY:
+
+"Let me summarise our six key contributions:
+
+First: The ACTION versus EFFECT framework — a principled model explaining where io_uring evasion succeeds and where it fails.
+
+Second: Phase 3 differential analysis — pure io_uring is invisible; mixed implementations create detectable syscall leaks.
+
+Third: The LD_PRELOAD 4-layer detection model — io_uring evades only the syscall layer; three layers remain effective.
+
+Fourth: A combined detection framework achieving 83% True Positive Rate with 4.1% False Positive Rate — an F1 score of 0.84.
+
+Fifth: Independent validation by RingReaper malware.
+
+Sixth: An open-source toolkit — 1,200+ lines of C plus production-ready detection rulesets.
+
+In terms of limitations: we tested against a single EDR platform; our lab environment has lower event noise than production; and our ML baseline was limited to 72 hours.
+
+For future work: we propose pure io_uring persistence mechanisms, kernel-level io_uring audit frameworks, cross-platform testing on RHEL and Debian, adversarial ML robustness testing, and automated Sigma rule generation."
+
+💡 TIPS:
+
+- Enumerate contributions clearly — these justify your MSc
+
+- Be honest about limitations — shows maturity
+
+- Future work items show research awareness
+
+➡️ TRANSITION:
+
+"I'll close with three targeted recommendations."
+
+═══════════════════════════════════════════
+
+SLIDE 24 — Recommendations & Thank You
+
+⏱️ 1 minute
+
+═══════════════════════════════════════════
+
+🎤 SAY:
+
+"I have three recommendations for different audiences:
+
+For Blue Teams and SOC analysts: Deploy a multi-layer detection architecture spanning all four layers — syscall chokepoints, file integrity monitoring, process environment analysis, and ML anomaly detection. No single layer is sufficient against io_uring evasion.
+
+For Red Teams and penetration testers: Use pure io_uring operations where possible to minimise detection. Avoid mixing traditional syscalls with io_uring — as we showed with Phase 3b, mixed implementations create detectable leaks.
+
+For kernel developers: Develop an io_uring audit framework that generates per-operation audit records, similar to how the syscall table works today.
+
+I'll close with the central quote of this thesis:
+
+'io_uring hides the ACTION but cannot hide the EFFECT. Defence-in-depth across four layers achieves 83% True Positive Rate.'
+
+Thank you. I'm now happy to take your questions."
+
+💡 TIPS:
+
+- Three recommendations — one per audience
+
+- Deliver the quote slowly and clearly — this is your closing statement
+
+- Smile. Make eye contact. Pause.
+
+- Let the panel initiate questions
+
+═══════════════════════════════════════════
+
+SLIDES 25–27 — Backup / Image Slides
+
+⏱️ 0 min (only show if asked)
+
+═══════════════════════════════════════════
+
+🎤 WHEN TO USE:
+
+SlideShow when...What to say25Panel asks about io_uring architecture detail"Here's the detailed SQ/CQ diagram showing the ring buffer architecture"26Panel asks about code implementation detail"Here's the source code for our three core io_uring helper functions"27Not needed unless askedReserve slide
+
+SlideShow when...What to say
+
+Slide
+
+Show when...
+
+What to say
+
+25Panel asks about io_uring architecture detail"Here's the detailed SQ/CQ diagram showing the ring buffer architecture"
+
+25
+
+Panel asks about io_uring architecture detail
+
+"Here's the detailed SQ/CQ diagram showing the ring buffer architecture"
+
+26Panel asks about code implementation detail"Here's the source code for our three core io_uring helper functions"
+
+26
+
+Panel asks about code implementation detail
+
+"Here's the source code for our three core io_uring helper functions"
+
+27Not needed unless askedReserve slide
+
+27
+
+Not needed unless asked
+
+Reserve slide
+
+═══════════════════════════════════════════
+
+🎯 Q&A PREPARATION — Top 10 Expected Questions
+
+═══════════════════════════════════════════
+
+Q1: "Why didn't you test against CrowdStrike or SentinelOne?"
+
+ANSWER: "This is acknowledged as a limitation. We focused on Elastic Defend because it's open-source with full eBPF visibility, which enabled us to analyse exactly what telemetry was and wasn't captured. However, all three EDRs share the same fundamental architecture — eBPF hooks on the syscall table — so our findings regarding io_uring evasion should generalise. Cross-platform testing is proposed as future work."
+
+Q2: "Why is Phase 3b detectable but 3a isn't?"
+
+ANSWER: "This is our central finding. Phase 3a uses pure io_uring — every operation goes through the ring buffer, generating zero traditional syscalls. Phase 3b must enumerate a directory, which requires getdents64 — an operation io_uring does not support. So the code falls back to opendir() and readdir(), which are traditional syscalls visible to Auditbeat. This syscall leak, combined with FIM events on bpffs, triggers 28 alerts. The root cause is an io_uring API limitation."
+
+Q3: "How practical is this attack in the real world?"
+
+ANSWER: "RingReaper, discovered in 2025, proves this is not theoretical. It uses io_uring for credential collection, network C2, and file reconnaissance — exactly the same operations in our Phases 2 and 4. Our toolkit demonstrates the full attack chain is feasible with approximately 1,200 lines of C, requiring only a standard Linux kernel 5.1 or later. The io_uring API is available on every modern Linux distribution."
+
+Q4: "Why only 83% TPR? What about the remaining 17%?"
+
+ANSWER: "The 17% gap represents operations that produce no detectable EFFECT — specifically, credential file reads and network C2 operations through io_uring. These operations don't modify the filesystem, so FIM cannot detect them. The reads also don't trigger auditbeat events because auditbeat monitors syscalls, not io_uring ring buffer operations. Closing this gap requires kernel-level instrumentation of io_uring completion paths, which we propose as future work."
+
+Q5: "What's the difference between ACTION and EFFECT?"
+
+ANSWER: "ACTION is the syscall execution itself — the openat(), read(), write() call. This is what EDRs monitor. EFFECT is the result — the file that now exists on disk, the process state that changed, the network connection that was established. io_uring hides the ACTION by using kernel worker threads instead of the syscall dispatch path. But it cannot hide the EFFECT — if you write to /etc/ld.so.preload, that file now exists and is detectable by FIM regardless of how it was written."
+
+Q6: "Could io_uring be disabled entirely?"
+
+ANSWER: "Yes — and some organisations do this. Docker removed io_uring from its default seccomp profile, and Google banned it on Android. However, io_uring provides significant performance benefits for legitimate applications — database engines, web servers, high-frequency I/O. Disabling it entirely creates a functionality trade-off. Our approach of monitoring io_uring_setup as a chokepoint is a more balanced solution."
+
+Q7: "How does LD_PRELOAD persist across reboots?"
+
+ANSWER: "Through /etc/ld.so.preload. When a line is added to this file pointing to our shared library, the dynamic linker automatically loads it for every new process on the system — including after reboot. Unlike LD_PRELOAD environment variable, which only affects the current process tree, ld.so.preload is system-wide and persistent. This is why FIM on /etc/ld.so.preload is critical for detection."
+
+Q8: "What happens when the EDR auto-restarts after being killed?"
+
+ANSWER: "Elastic Defend is managed by systemd and auto-restarts within seconds. However, during the window between kill and restart, the attacker can perform operations with zero monitoring. In our testing, this window was approximately 3-5 seconds — sufficient for credential exfiltration. After restart, the EDR resumes normal monitoring, but it has no record of what happened during the blind window."
+
+Q9: "Why did you use Auditbeat instead of just Elastic Defend?"
+
+ANSWER: "Elastic Defend's eBPF probes monitor the syscall dispatch path — which io_uring bypasses entirely. We needed Auditbeat because it provides kernel-level audit rules that can capture io_uring_setup and io_uring_enter syscalls directly, plus File Integrity Monitoring on critical paths. The combination of both gives us the multi-layer detection capability that neither provides alone."
+
+Q10: "What ethical considerations did you address?"
+
+ANSWER: "All testing was conducted in an isolated laboratory environment with no connection to production systems. The toolkit was designed for educational and defensive purposes — enabling security teams to understand and prepare for io_uring-based threats. We followed responsible disclosure principles, and our detection framework ensures that the defensive contribution outweighs any potential offensive misuse. The research was approved by the university ethics committee."
+
+⏱️ PRACTICE SCHEDULE
+
+DayFocusGoalDay 1Read through entire scriptFamiliarityDay 2Practice Slides 1-11 (10 min)Smooth openingDay 3Practice Slides 12-19 (8 min)Red Team + Detection confidentDay 4Practice Slides 20-24 (5 min)Strong closingDay 5Full run-through #1Target: 25 minDay 6Full run-through #2 + Q&A practiceTarget: 23 minDay 7Final polish + timer checkReady!
+
+DayFocusGoal
+
+Day
+
+Focus
+
+Goal
+
+Day 1Read through entire scriptFamiliarity
+
+Day 1
+
+Read through entire script
+
+Familiarity
+
+Day 2Practice Slides 1-11 (10 min)Smooth opening
+
+Day 2
+
+Practice Slides 1-11 (10 min)
+
+Smooth opening
+
+Day 3Practice Slides 12-19 (8 min)Red Team + Detection confident
+
+Day 3
+
+Practice Slides 12-19 (8 min)
+
+Red Team + Detection confident
+
+Day 4Practice Slides 20-24 (5 min)Strong closing
+
+Day 4
+
+Practice Slides 20-24 (5 min)
+
+Strong closing
+
+Day 5Full run-through #1Target: 25 min
+
+Day 5
+
+Full run-through #1
+
+Target: 25 min
+
+Day 6Full run-through #2 + Q&A practiceTarget: 23 min
+
+Day 6
+
+Full run-through #2 + Q&A practice
+
+Target: 23 min
+
+Day 7Final polish + timer checkReady!
+
+Day 7
+
+Final polish + timer check
+
+Ready!
+
+🎯 KEY PHRASES TO MEMORIZE
+
+- "io_uring invalidates this assumption"
+
+- "EDR Blind Zone"
+
+- "Double Evasion — EDR blind, administrator blind, simultaneously"
+
+- "Implementation purity determines evasion success"
+
+- "io_uring hides the ACTION but cannot hide the EFFECT"
+
+- "Pure io_uring is invisible. Mixed implementations leak."
+
+- "Monitor EFFECTS, not just ACTIONS"
+
+- "Defence-in-depth across four layers achieves 83% TPR"
+
+- "No single layer is sufficient"
+
+- "Privilege isolation is the first line of defence"

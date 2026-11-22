@@ -1,0 +1,92 @@
+
+═══════════════════════════════════════════════════════════════════════════
+  CHẠY ATTACK + THU THẬP EVIDENCE CHO THESIS
+  Bạn đã có alerts (7-22h ago) → nghĩa là đã chạy attack rồi!
+  Giờ cần: chạy lại + screenshot có hệ thống
+═══════════════════════════════════════════════════════════════════════════
+
+
+BƯỚC 1: Trên Target — Chạy attack (nếu cần chạy lại)
+──────────────────────────────────────────────────────
+  SSH vào ubuntu-target:
+  
+  # Chạy full attack chain
+  sudo ./evasion_ops
+
+  # Hoặc chạy từng phần:
+  LD_PRELOAD=/path/to/evasion_hooks.so ls       # → Rule 2
+  LD_AUDIT=/path/to/evasion_hooks.so ls          # → Rule 3
+  echo "/tmp/evil.so" | sudo tee /etc/ld.so.preload  # → Rule 4
+  echo 0 | sudo tee /sys/kernel/debug/tracing/tracing_on  # → Rule 5
+  cat /etc/shadow                                 # → Rule 8
+
+
+BƯỚC 2: Chờ 2-5 phút → Vào Kibana thu thập screenshots
+──────────────────────────────────────────────────────────
+
+  📸 Screenshot 1: Rules Overview
+     ☰ → Security → Rules → search "Purple-Team"
+     → Screenshot toàn bộ 13 rules với status
+     → Cho Chapter 5: "Detection Rule Deployment"
+
+  📸 Screenshot 2: Alerts Page
+     ☰ → Security → Alerts
+     → Filter: kibana.alert.rule.tags: "Purple-Team"
+     → Time: chọn khoảng thời gian có alerts
+     → Screenshot danh sách alerts
+     → Cho Chapter 5: "Detection Results"
+
+  📸 Screenshot 3: Alert Detail (1 ví dụ điển hình)
+     → Click vào 1 alert (ví dụ "DOUBLE EVASION")
+     → Screenshot alert detail panel
+     → Highlight: timeline, MITRE mapping, host info
+     → Cho Chapter 5: "Alert Analysis"
+
+  📸 Screenshot 4: Alert Timeline
+     ☰ → Security → Alerts → chuyển view sang "Trend"
+     → Screenshot biểu đồ timeline alerts
+     → Cho Chapter 5: "Attack Chain Visualization"
+
+  📸 Screenshot 5: ML Anomaly Explorer
+     ☰ → Machine Learning → Anomaly Explorer
+     → Chọn job: io-uring-enter-spike
+     → Time range: khoảng thời gian chạy attack
+     → Screenshot anomaly scores
+     → Cho Chapter 5: "ML-based Detection"
+
+  📸 Screenshot 6: ML Job — rare-io-uring-process
+     → Chọn job: rare-io-uring-process
+     → Screenshot anomaly chart
+     → Cho Chapter 5
+
+  📸 Screenshot 7: Discover — Raw Audit Events
+     ☰ → Discover → auditbeat-* (hoặc logs-auditd.log-*)
+     → Search: auditd.data.key:"io_uring_init"
+     → Screenshot raw events
+     → Cho Chapter 4: "io_uring Telemetry Evidence"
+
+  📸 Screenshot 8: Dashboard (nếu đã tạo)
+     → Screenshot full dashboard
+     → Cho Chapter 5: "SOC Dashboard"
+
+
+BƯỚC 3: Evidence Matrix — Map screenshots → thesis chapters
+────────────────────────────────────────────────────────────
+
+  ┌──────────────────────┬────────────────────────────────────┐
+  │ Thesis Section       │ Screenshots cần                    │
+  ├──────────────────────┼────────────────────────────────────┤
+  │ Chapter 4: Red Team  │ #7 (raw io_uring events)           │
+  │ (Attack Execution)   │ + terminal output khi chạy attack  │
+  │                      │                                    │
+  │ Chapter 5: Blue Team │ #1 (Rules overview)                │
+  │ (Detection)          │ #2 (Alerts list)                   │
+  │                      │ #3 (Alert detail)                  │
+  │                      │ #4 (Alert timeline)                │
+  │                      │ #5, #6 (ML anomalies)              │
+  │                      │ #8 (Dashboard)                     │
+  │                      │                                    │
+  │ Chapter 5: Results   │ Detection rate table                │
+  │ (Evaluation)         │ = alerts fired / attacks launched   │
+  └──────────────────────┴────────────────────────────────────┘
+

@@ -1,0 +1,244 @@
+
+═══════════════════════════════════════════════════════════════════════════
+  PHASE 4: TẠO SOC DASHBOARD — Kibana Web UI
+  Path: ☰ → Analytics → Dashboard → [Create dashboard]
+  
+  Dashboard này hiển thị TOÀN BỘ detection pipeline:
+    Panel 1: Alert Timeline (khi nào alert fire)
+    Panel 2: Alerts by Rule (rule nào fire nhiều nhất)
+    Panel 3: Attack Phase Progression (phase nào detected)
+    Panel 4: io_uring_enter Frequency (burst detection)
+    Panel 5: ML Anomaly Scores
+    Panel 6: Alert Details Table
+═══════════════════════════════════════════════════════════════════════════
+
+
+BƯỚC 1: Tạo Dashboard mới
+──────────────────────────
+  1. Click ☰ → "Analytics" → "Dashboard"
+  2. Click [Create dashboard] (nút xanh)
+  3. Bạn sẽ vào editor mode với canvas trống
+
+
+BƯỚC 2: Thêm Panel 1 — Alert Timeline
+kibana.alert.ancestors.index:".alerts-security.alerts-default"
+────────────────────────────────────────
+  1. Click [Create visualization] (hoặc nút + ở toolbar)
+  2. Chọn chart type: "Bar vertical" (hoặc "Area")
+
+  ── Left sidebar: Data config ──
+  3. Data view: .alerts-security.alerts-default
+     (Gõ ".alerts" trong search box)
+
+  4. Horizontal axis (X):
+     → Click [+ Add layer] hoặc "Horizontal axis"
+     → Function: Date histogram
+     → Field: @timestamp
+     → Minimum interval: 1 minute
+
+  5. Vertical axis (Y):
+     → Function: Count
+     → (default, đã có sẵn)
+
+  6. Break down by:
+     → Click [+ Add breakdown]
+     → Function: Top values
+     → Field: kibana.alert.rule.name
+     → Number of values: 10
+
+  7. Ở title bar trên (click "Untitled"):
+     → Đổi thành: "🔔 Alert Timeline — Purple Team"
+
+  8. Click [Save and return] (góc phải trên)
+
+
+BƯỚC 3: Thêm Panel 2 — Alerts by Rule (Pie Chart) --- cái này test lại sau 
+───────────────────────────────────────────────────
+  1. Click [Create visualization]
+  2. Chọn: "Pie"
+
+  3. Data view: .alerts-security.alerts-default
+
+  4. Slice by:
+     → Function: Top values
+     → Field: kibana.alert.rule.name
+     → Number of values: 13 (hoặc 10)
+
+  5. Size by:
+     → Function: Count
+
+  6. Title: "📊 Alerts by Detection Rule"
+  7. [Save and return]
+
+
+BƯỚC 4: Thêm Panel 3 — Attack Phase Distribution --  thiếu các tags 
+──────────────────────────────────────────────────
+  1. [Create visualization] → "Bar horizontal"
+
+  2. Data view: .alerts-security.alerts-default
+
+  3. Vertical axis (Y):
+     → Top values
+     → Field: kibana.alert.rule.tags
+     → Number: 10
+
+  4. Horizontal axis (X):
+     → Count
+
+  5. Filters (ở top bar của visualization):
+     → Click [+ Add filter]
+     → Field: kibana.alert.rule.tags
+     → Operator: is one of
+     → Values: Phase1, Phase3a, Phase3b, Phase3c, Phase4,
+               Phase4c, Phase5, Phase-Persist, REAPER-Chain,
+               Double-Evasion
+
+  6. Title: "🎯 Attack Phases Detected"
+  7. [Save and return]
+
+
+BƯỚC 5: Thêm Panel 4 — io_uring_enter Frequency Graph
+──────────────────────────────────────────────────────
+  1. [Create visualization] → "Line"
+
+  2. Data view: auditbeat-*   ← KHÁC data view!
+
+  3. Horizontal axis: Date histogram, @timestamp, interval: 30 seconds
+
+  4. Vertical axis: Count
+
+  5. Filter (top bar):
+     → Field: auditd.data.syscall
+     → Operator: is
+     → Value: io_uring_enter
+
+  6. Title: "📈 io_uring_enter Frequency (Burst Detection)"
+  7. [Save and return]
+
+
+BƯỚC 6: Thêm Panel 5 — Severity Distribution -> không tìm thấy các alert critical hay high 
+─────────────────────────────────────────────
+  1. [Create visualization] → "Metric" (hoặc "Gauge")
+
+  2. Data view: .alerts-security.alerts-default
+
+  → Tạo 4 metrics:
+
+  Metric A: Critical alerts
+     Function: Count
+     Filter: kibana.alert.severity: "critical"
+     Label: 🔴 Critical
+
+  Metric B: High alerts
+     Function: Count  
+     Filter: kibana.alert.severity: "high"
+     Label: 🟠 High
+
+  → Hoặc dùng "Lens" với breakdown by severity
+
+  3. Title: "⚠️ Alert Severity Breakdown"
+  4. [Save and return]
+
+
+BƯỚC 7: Thêm Panel 6 — Alert Details Table --okk
+────────────────────────────────────────────
+  1. [Create visualization] → "Table"
+
+  2. Data view: .alerts-security.alerts-default
+
+  3. Columns (mỗi cái click [+ Add column]):
+
+     Column 1: @timestamp                    (Date)
+     Column 2: kibana.alert.rule.name        (Rule name)
+     Column 3: kibana.alert.severity         (Severity)
+     Column 4: host.name                     (Which host)
+     Column 5: process.executable            (Process)
+     Column 6: file.path                     (File involved)
+     Column 7: user.name                     (User)
+
+  4. Sort: @timestamp descending (mới nhất trên đầu)
+  5. Rows per page: 20
+
+  6. Title: "📋 Alert Details — All Purple Team Rules"
+  7. [Save and return]
+
+
+BƯỚC 8 (Optional): Thêm Panel 7 — LLM Analysis Results
+─────────────────────────────────────────────────────────
+  → Chỉ có sau khi chạy siem_llm_analyzer.py
+
+  1. [Create visualization] → "Table"
+  2. Data view: uring-llm-analysis   ← LLM output index
+  3. Columns:
+     @timestamp
+     host.name
+     analysis.chain_status
+     analysis.confidence
+     analysis.phases_detected
+     analysis.llm_response
+
+  4. Title: "🤖 LLM Threat Analysis"
+  5. [Save and return]
+
+
+BƯỚC 9: Sắp xếp Layout + Save Dashboard
+─────────────────────────────────────────
+  1. Kéo-thả các panels để sắp xếp:
+
+     ┌──────────────────────────┬──────────────────────────┐
+     │                          │                          │
+     │  🔔 Alert Timeline       │  📊 Alerts by Rule       │
+     │  (rộng, nằm trên)       │  (Pie chart)             │
+     │                          │                          │
+     ├──────────────────────────┼──────────────────────────┤
+     │                          │                          │
+     │  🎯 Attack Phases        │  ⚠️ Severity Breakdown    │
+     │  (Bar horizontal)       │  (Metric/Gauge)          │
+     │                          │                          │
+     ├──────────────────────────┴──────────────────────────┤
+     │                                                      │
+     │  📈 io_uring_enter Frequency (Line — full width)     │
+     │                                                      │
+     ├──────────────────────────────────────────────────────┤
+     │                                                      │
+     │  📋 Alert Details Table (full width)                  │
+     │                                                      │
+     ├──────────────────────────────────────────────────────┤
+     │  🤖 LLM Analysis (full width, nếu có)                │
+     └──────────────────────────────────────────────────────┘
+
+  2. Resize panels: Kéo góc phải dưới của mỗi panel
+
+  3. Click [Save] (góc phải trên)
+     → Title: "Purple Team — io_uring + LD_PRELOAD SOC Dashboard"
+     → Description: Detection dashboard for io_uring evasion
+                    and LD_PRELOAD hooking Purple Team exercise
+     → Click [Save]
+
+  📸 SCREENSHOT dashboard này cho thesis Chapter 5!
+
+
+═══════════════════════════════════════════════════════════════════════════
+ FILTER DASHBOARD (khi demo)
+═══════════════════════════════════════════════════════════════════════════
+
+  → Ở top bar của dashboard có filter bar:
+
+  Filter 1: Chỉ xem Purple-Team alerts
+     Click [+ Add filter]
+     Field: kibana.alert.rule.tags
+     Operator: is
+     Value: Purple-Team
+
+  Filter 2: Chỉ xem 1 host cụ thể
+     Field: host.name
+     Operator: is
+     Value: ubuntu-target
+
+  Filter 3: Chỉ xem Critical alerts
+     Field: kibana.alert.severity
+     Operator: is
+     Value: critical
+
+  Time range: Góc phải trên → chọn "Last 1 hour" hoặc "Last 24 hours"
+
