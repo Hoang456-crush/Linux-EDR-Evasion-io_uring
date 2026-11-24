@@ -18,11 +18,11 @@ An enterprise-ready **Purple Team Security Assessment Framework and Telemetry Be
 Linux-EDR-Evasion-io_uring/
 ├── .github/
 │   └── workflows/
-│       └── ci.yml                 # Automated GCC compilation, smoke test & Sigma linting
-├── Dockerfile                     # Isolated containerized testing environment
-├── docker-compose.yml             # One-click privileged assessment sandbox
+│       └── ci.yml                 # GitHub Actions CI: Automated build, smoke test & Sigma linting
+├── Dockerfile                     # Isolated Ubuntu 22.04 container with liburing-dev
+├── docker-compose.yml             # Privileged testing container configuration
 ├── src/
-│   ├── Makefile                   # Modular build automation
+│   ├── Makefile                   # Multi-target build script (all, legacy, clean, help)
 │   ├── include/
 │   │   └── evasion_lab.h          # Core prototypes, structs & CLI definitions
 │   ├── hooks/
@@ -32,7 +32,7 @@ Linux-EDR-Evasion-io_uring/
 │   ├── cli/
 │   │   └── main.c                 # Multi-mode CLI interface with safe-mode & dry-run
 │   └── legacy/
-│       └── evasion_toolkit_monolithic.c # Preserved monolithic thesis source
+│       └── evasion_toolkit_monolithic.c # Preserved original monolithic thesis source
 ├── detections/
 │   ├── sigma/                     # 13 Standard Sigma YAML detection rules
 │   │   ├── sys_iouring_setup_chokepoint.yml
@@ -55,8 +55,8 @@ Linux-EDR-Evasion-io_uring/
 ├── demo/
 │   ├── attack_execution_guide.txt # Step-by-step experiment reproduction guide
 │   └── README.md                  # Video demo guidance & Release asset links
-├── .gitignore
-└── README.md
+├── .gitignore                     # Git ignore rules for binaries and temporary artifacts
+└── README.md                      # Comprehensive lab documentation & CI/CD guides
 ```
 
 ---
@@ -196,6 +196,79 @@ All detection rules are packaged in [detections/sigma/](detections/sigma/) and f
 * [`lnx_double_evasion_meta_rule.yml`](detections/sigma/lnx_double_evasion_meta_rule.yml): High-severity meta-alert.
 
 ---
+
+
+---
+
+## 🔄 CI/CD & Automated Testing Pipeline
+
+This project employs a robust **Continuous Integration (CI)** pipeline powered by **GitHub Actions** ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) to ensure code reliability, multi-target compilation integrity, and rule validation on every push or pull request.
+
+```
++-----------------------------------------------------------------------------------+
+|                           GitHub Actions CI Pipeline                              |
++-----------------------------------------------------------------------------------+
+| 1. Environment Setup   --> Ubuntu 22.04 LTS + GCC + liburing-dev + PyYAML        |
+| 2. Modular Build       --> make (libevasion_hooks.so & evasion_lab)               |
+| 3. Legacy Target Build --> make legacy (evasion_hooks.so & evasion_ops)           |
+| 4. CLI Smoke Testing   --> --help, --dry-run, --safe-mode, --cleanup              |
+| 5. Sigma Linting       --> Automated YAML syntax & metadata validation (13 rules) |
++-----------------------------------------------------------------------------------+
+```
+
+### 1. What the Pipeline Verifies
+* **Compiler & Linker Integrity**: Compiles both the modern modular framework (`evasion_lab`) and legacy monolithic binaries using GCC with `-Wall -Wextra -O2`, verifying that `liburing` and dynamic linker hooks (`-ldl`) link without errors or unresolved symbols.
+* **Non-Destructive Smoke Tests**: Runs `evasion_lab` in `--dry-run` and `--safe-mode` across multiple phase arguments (Phase 1, Phase 4) to ensure the CLI parser, memory management, and argument validation work reliably without modifying host system state.
+* **Detection-as-Code Quality Gate**: An embedded Python test suite lints all 13 Sigma rule files in [`detections/sigma/`](detections/sigma/) to enforce that all required schema keys (`title`, `id`, `status`, `description`, `logsource`, `detection`, `level`, `tags`) are present and compliant with the Sigma specification.
+
+### 2. How to Run the CI Pipeline Locally
+
+You can execute the exact same checks locally before pushing code to GitHub:
+
+#### Option A: Native Command Line (Linux / WSL2)
+```bash
+# Step 1: Install dependencies
+sudo apt-get update && sudo apt-get install -y build-essential liburing-dev python3-yaml
+
+# Step 2: Compile both modular and legacy targets
+cd src
+make clean && make
+make legacy
+
+# Step 3: Run CLI smoke tests
+./evasion_lab --help
+./evasion_lab --mode benchmark --dry-run
+./evasion_lab --mode test-phase --phase 1 --dry-run
+./evasion_lab --mode cleanup
+cd ..
+
+# Step 4: Validate Sigma rules
+python3 -c '
+import os, yaml, sys
+sigma_dir = "detections/sigma"
+required_keys = ["title", "id", "status", "description", "logsource", "detection", "level", "tags"]
+files = [f for f in os.listdir(sigma_dir) if f.endswith(".yml")]
+print(f"Validating {len(files)} Sigma rules...")
+for f in files:
+    with open(os.path.join(sigma_dir, f)) as yf:
+        data = yaml.safe_load(yf)
+    for k in required_keys:
+        assert k in data, f"{f} missing {k}"
+print("[SUCCESS] All Sigma rules are valid!")
+'
+```
+
+#### Option B: Using `act` (Run GitHub Actions Locally in Docker)
+If you have [nektos/act](https://github.com/nektos/act) installed:
+```bash
+# Run the entire GitHub Actions workflow locally in a Docker container
+act push
+```
+
+### 3. CI Status Badge
+The badge at the top of the repository automatically reflects the real-time health of the `main` branch:
+* 🟢 **Passing**: Both modular and legacy binaries compiled cleanly and all 13 Sigma rules passed validation.
+* 🔴 **Failing**: A build error or malformed Sigma rule was detected, preventing broken code from silently entering the codebase.
 
 ## ⚠️ Legal & Ethical Disclaimer
 
