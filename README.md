@@ -46,8 +46,12 @@ Linux-EDR-Evasion-io_uring/
 │   └── kibana_dashboard/
 │       └── kibana_soc_dashboard_guide.txt # 6-panel Kibana SOC Dashboard configuration
 ├── docs/
+│   ├── soc_operations/           # Practical SOC L1/L2/L3 Investigation Suite
+│   │   ├── SOC_Analyst_Triage_Playbook.md   # Step-by-step Triage & ID Pivoting guide
+│   │   ├── Key_Identifiers_Reference.md    # Cross-platform mapping (ECS, Auditd, Splunk, Falcon)
+│   │   └── Hunting_Queries_Library.md       # Event Code & sub-element queries (ES|QL, KQL, SPL)
 │   ├── thesis/
-│   │   └── Research_Executive_Summary.md # Academic summary, methodology & detection metrics
+│   │   └── Research_Executive_Summary.md   # Academic summary, methodology & detection metrics
 │   ├── presentation/
 │   │   ├── PSB7030CE_DO-DINH-HUY-HOANG.pptx # 27-slide defense presentation
 │   │   └── defense_presentation_script.txt  # Slide-by-slide defense script
@@ -269,6 +273,31 @@ act push
 The badge at the top of the repository automatically reflects the real-time health of the `main` branch:
 * 🟢 **Passing**: Both modular and legacy binaries compiled cleanly and all 13 Sigma rules passed validation.
 * 🔴 **Failing**: A build error or malformed Sigma rule was detected, preventing broken code from silently entering the codebase.
+
+
+---
+
+## 🕵️ SOC Operations & Identifier-Driven Triage (Playbook & Hunting)
+
+In modern enterprise SOC environments, analysts do not author detection rules from scratch during an active incident. Instead, they operate through **Identifier-Driven Pivoting (ID Pivoting)**, **Process Lineage Reconstruction**, and **Entity Analytics** using specific event codes and sub-elements.
+
+### 🔄 Windows vs. Linux Event Codes & Elements Comparison
+
+For analysts familiar with Windows incident triage (`event.code: "4625" AND winlog.event_data.LogonType: "10"`), the equivalent telemetry in our Linux EDR evasion framework maps directly:
+
+| Threat Behavior | Windows Telemetry | Linux Equivalent (Elastic / Auditd / Sysmon) |
+| :--- | :--- | :--- |
+| **`io_uring_setup` Syscall** | N/A *(Windows leverages IOCP)* | `event.code: "425"` AND `auditd.data.a0: "16"` |
+| **`LD_PRELOAD` Hooking** | `event.code: "4688"` / Sysmon `1` | Sysmon Linux `event.code: "1"` AND `process.command_line: "*LD_PRELOAD=*"` |
+| **Suspicious `.so` Image Load** | Sysmon `event.code: "7"` (ImageLoaded) | Sysmon Linux `event.code: "7"` AND `file.path: ("/tmp/*.so" OR "*/evil.so")` |
+| **Sudo NOPASSWD Abuse** | `event.code: "4624"` (LogonType 2) | `event.code: "USER_CMD"` AND `auditd.data.auid: "1001"` AND `user.id: "0"` |
+| **Rootkit Preload Persistence** | `event.code: "11"` (FileCreate) | `event.category: "file"` AND `file.path: "/etc/ld.so.preload"` |
+| **Kernel Tracing Disabled** | `event.code: "7045"` / Service Tamper | `file.path: "/sys/kernel/debug/tracing/tracing_on"` AND `event.action: "modification"` |
+
+### 📚 Operational Documentation Suite
+* 📘 [**SOC Analyst Triage Playbook**](docs/soc_operations/SOC_Analyst_Triage_Playbook.md): Complete 5-phase procedural incident response guide covering `process.entity_id` lineage tracking, True/False positive differentiation, and host containment.
+* 📕 [**Key Identifiers Reference Dictionary**](docs/soc_operations/Key_Identifiers_Reference.md): Field mapping between Elastic Common Schema (ECS), Linux Auditd, Splunk CIM, and CrowdStrike Falcon.
+* 📗 [**Threat Hunting Queries Library**](docs/soc_operations/Hunting_Queries_Library.md): Copy-pasteable query templates in Elastic KQL, ES|QL, Splunk SPL, and native `ausearch`.
 
 ## ⚠️ Legal & Ethical Disclaimer
 
