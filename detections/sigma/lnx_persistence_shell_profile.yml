@@ -1,0 +1,22 @@
+title: Shell Profile and Environment Persistence Modification
+id: e8a12c41-92cb-4fa1-8207-6f81b10a0009
+status: test
+description: Detects modifications to global shell initialization files used for persistence.
+author: Do Dinh Huy Hoang
+logsource:
+    category: file_event
+    product: linux
+detection:
+    selection:
+        file.path:
+            - '/etc/profile'
+            - '/etc/bash.bashrc'
+            - '/etc/environment'
+        event.action: 'modified'
+    condition: selection
+falsepositives:
+    - Administrative environment updates.
+level: medium
+tags:
+    - attack.persistence
+    - attack.t1546.004

@@ -1,0 +1,18 @@
+title: Dynamic Linker Auditing Abuse via LD_AUDIT
+id: e8a12c41-92cb-4fa1-8207-6f81b10a0003
+status: test
+description: Detects processes launched with LD_AUDIT, which intercepts symbol resolution and execution across loaded shared objects.
+author: Do Dinh Huy Hoang
+logsource:
+    category: process_creation
+    product: linux
+detection:
+    selection:
+        process.command_line|contains: 'LD_AUDIT='
+    condition: selection
+falsepositives:
+    - Dynamic debugging or compiler tracing frameworks.
+level: high
+tags:
+    - attack.defense_evasion
+    - attack.t1574.006

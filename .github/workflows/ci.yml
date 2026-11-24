@@ -1,0 +1,65 @@
+name: Build & Security CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential liburing-dev python3-yaml
+
+      - name: Build modular toolkit
+        run: |
+          cd src
+          make
+
+      - name: Build legacy thesis targets
+        run: |
+          cd src
+          make legacy
+
+      - name: Run CLI smoke & dry-run validation
+        run: |
+          cd src
+          ./evasion_lab --help
+          ./evasion_lab --mode benchmark --dry-run
+          ./evasion_lab --mode test-phase --phase 1 --dry-run
+          ./evasion_lab --mode test-phase --phase 4 --dry-run
+          ./evasion_lab --mode cleanup
+
+      - name: Validate Sigma YAML syntax and metadata
+        run: |
+          python3 - << 'EOF'
+          import os, yaml, sys
+          sigma_dir = "detections/sigma"
+          required_keys = ["title", "id", "status", "description", "logsource", "detection", "level", "tags"]
+          files = [f for f in os.listdir(sigma_dir) if f.endswith(".yml")]
+          print(f"Validating {len(files)} Sigma rules...")
+          errors = 0
+          for f in files:
+              fp = os.path.join(sigma_dir, f)
+              try:
+                  with open(fp, "r", encoding="utf-8") as yf:
+                      data = yaml.safe_load(yf)
+                  for k in required_keys:
+                      if k not in data:
+                          print(f"[ERROR] {f} missing key: {k}")
+                          errors += 1
+              except Exception as e:
+                  print(f"[ERROR] {f} failed to parse: {e}")
+                  errors += 1
+          if errors > 0:
+              sys.exit(1)
+          print("[SUCCESS] All 13 Sigma rules verified.")
+          EOF

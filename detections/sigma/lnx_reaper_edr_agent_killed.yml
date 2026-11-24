@@ -1,0 +1,27 @@
+title: Endpoint Security Agent Process Terminated (REAPER Phase 3c)
+id: e8a12c41-92cb-4fa1-8207-6f81b10a0007
+status: test
+description: Detects forced signal termination (SIGKILL, SIGSTOP) targeted at known EDR/SIEM endpoint processes.
+author: Do Dinh Huy Hoang
+logsource:
+    category: process_tampering
+    product: linux
+detection:
+    selection:
+        target.process.name:
+            - 'elastic-agent'
+            - 'elastic-endpoint'
+            - 'falcon-sensor'
+            - 'osqueryd'
+            - 'auditbeat'
+        signal:
+            - 'SIGKILL'
+            - 'SIGSTOP'
+            - 'SIGTERM'
+    condition: selection
+falsepositives:
+    - Package manager updates or administrator maintenance.
+level: critical
+tags:
+    - attack.defense_evasion
+    - attack.t1562.001

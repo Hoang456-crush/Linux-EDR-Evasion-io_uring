@@ -1,0 +1,21 @@
+title: Double Evasion Meta-Alert (io_uring Setup + Preload Injection)
+id: e8a12c41-92cb-4fa1-8207-6f81b10a0013
+status: stable
+description: Meta-alert firing when io_uring setup coincides with dynamic library injection on the same host, indicating combined evasion.
+author: Do Dinh Huy Hoang
+logsource:
+    category: alert_correlation
+    product: linux
+detection:
+    selection_iouring:
+        rule.id: 'e8a12c41-92cb-4fa1-8207-6f81b10a0001'
+    selection_preload:
+        rule.id: 'e8a12c41-92cb-4fa1-8207-6f81b10a0002'
+    timeframe: 10m
+    condition: selection_iouring and selection_preload
+falsepositives:
+    - Extremely rare; possible in custom high-speed network proxy debugging.
+level: critical
+tags:
+    - attack.defense_evasion
+    - attack.t1574.006

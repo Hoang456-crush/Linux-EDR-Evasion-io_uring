@@ -1,0 +1,21 @@
+title: Kernel Debug Tracing Disabled (REAPER Phase 3a)
+id: e8a12c41-92cb-4fa1-8207-6f81b10a0005
+status: test
+description: Detects attempts to disable kernel event tracing by writing zero to tracing_on pseudo-files.
+author: Do Dinh Huy Hoang
+logsource:
+    category: file_event
+    product: linux
+detection:
+    selection:
+        file.path:
+            - '/sys/kernel/debug/tracing/tracing_on'
+            - '/sys/kernel/tracing/tracing_on'
+        event.action: 'modified'
+    condition: selection
+falsepositives:
+    - Performance diagnostic sessions concluding trace collections.
+level: high
+tags:
+    - attack.defense_evasion
+    - attack.t1562.001

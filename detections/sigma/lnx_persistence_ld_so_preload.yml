@@ -1,0 +1,23 @@
+title: Modification of Global Linker Preload File
+id: e8a12c41-92cb-4fa1-8207-6f81b10a0004
+status: stable
+description: Detects modification, write, or recreation of /etc/ld.so.preload, a persistent userspace rootkit vector.
+author: Do Dinh Huy Hoang
+logsource:
+    category: file_event
+    product: linux
+detection:
+    selection:
+        file.path: '/etc/ld.so.preload'
+        event.action:
+            - 'created'
+            - 'modified'
+            - 'renamed'
+    condition: selection
+falsepositives:
+    - Rare administrative system-wide library preload configs.
+level: critical
+tags:
+    - attack.persistence
+    - attack.defense_evasion
+    - attack.t1574.006

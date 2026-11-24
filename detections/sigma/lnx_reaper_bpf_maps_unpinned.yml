@@ -1,0 +1,19 @@
+title: eBPF Map Unpinned or Destroyed (REAPER Phase 3b)
+id: e8a12c41-92cb-4fa1-8207-6f81b10a0006
+status: test
+description: Detects deletion or unlinking of pinned eBPF maps used by modern EDR sensors in /sys/fs/bpf/.
+author: Do Dinh Huy Hoang
+logsource:
+    category: file_event
+    product: linux
+detection:
+    selection:
+        file.path|startswith: '/sys/fs/bpf/'
+        event.action: 'deleted'
+    condition: selection
+falsepositives:
+    - EDR upgrades or container network interface (CNI) daemon restarts (e.g., Cilium).
+level: high
+tags:
+    - attack.defense_evasion
+    - attack.t1562.001

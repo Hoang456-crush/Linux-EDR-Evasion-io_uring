@@ -1,0 +1,21 @@
+title: Dynamic Linker Hook Injection via LD_PRELOAD
+id: e8a12c41-92cb-4fa1-8207-6f81b10a0002
+status: test
+description: Detects execution of processes using the LD_PRELOAD environment variable to hook userspace C library functions.
+author: Do Dinh Huy Hoang
+references:
+    - https://attack.mitre.org/techniques/T1574/006/
+logsource:
+    category: process_creation
+    product: linux
+detection:
+    selection:
+        process.command_line|contains: 'LD_PRELOAD='
+    condition: selection
+falsepositives:
+    - Profiling tools (e.g. valgrind, gperftools).
+level: high
+tags:
+    - attack.defense_evasion
+    - attack.persistence
+    - attack.t1574.006

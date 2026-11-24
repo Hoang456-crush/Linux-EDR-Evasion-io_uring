@@ -1,12 +1,14 @@
 # Linux EDR Evasion & Telemetry Assessment Lab (`io_uring` & `LD_PRELOAD`)
 
+[![Build & Security CI](https://github.com/Hoang456-crush/Linux-EDR-Evasion-io_uring/actions/workflows/ci.yml/badge.svg)](https://github.com/Hoang456-crush/Linux-EDR-Evasion-io_uring/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Kernel: 5.1+](https://img.shields.io/badge/Linux%20Kernel-5.1%2B-green.svg)](https://kernel.org)
 [![EDR Tested: Elastic Defend](https://img.shields.io/badge/EDR-Elastic%20Defend-orange.svg)](https://elastic.co)
 [![Framework: Purple Team](https://img.shields.io/badge/Methodology-Purple%20Team-purple.svg)]()
-[![Build: GCC](https://img.shields.io/badge/Build-GCC%20%7C%20Make-yellow.svg)]()
+[![Docker Ready](https://img.shields.io/badge/Docker-Ready-2496ED.svg?logo=docker&logoColor=white)]()
+[![Sigma Rules: 13](https://img.shields.io/badge/Sigma%20Rules-13%20Verified-blueviolet.svg)]()
 
-A modular Purple Team security assessment framework and benchmarking laboratory evaluating Linux kernel asynchronous I/O (`io_uring`) and userspace dynamic linker hooking (`LD_PRELOAD`) against modern Endpoint Detection and Response (EDR) platforms.
+An enterprise-ready **Purple Team Security Assessment Framework and Telemetry Benchmarking Laboratory**. Evaluates Linux kernel asynchronous I/O (`io_uring`) and userspace dynamic linker hooking (`LD_PRELOAD`) against modern Endpoint Detection and Response (EDR) platforms, complemented by resilient Blue Team detection engineering (Sigma, Elastic SIEM, and Behavioral Machine Learning).
 
 ---
 
@@ -14,6 +16,11 @@ A modular Purple Team security assessment framework and benchmarking laboratory 
 
 ```
 Linux-EDR-Evasion-io_uring/
+├── .github/
+│   └── workflows/
+│       └── ci.yml                 # Automated GCC compilation, smoke test & Sigma linting
+├── Dockerfile                     # Isolated containerized testing environment
+├── docker-compose.yml             # One-click privileged assessment sandbox
 ├── src/
 │   ├── Makefile                   # Modular build automation
 │   ├── include/
@@ -27,8 +34,13 @@ Linux-EDR-Evasion-io_uring/
 │   └── legacy/
 │       └── evasion_toolkit_monolithic.c # Preserved monolithic thesis source
 ├── detections/
+│   ├── sigma/                     # 13 Standard Sigma YAML detection rules
+│   │   ├── sys_iouring_setup_chokepoint.yml
+│   │   ├── lnx_ld_preload_injection.yml
+│   │   ├── lnx_reaper_kernel_tracing_disabled.yml
+│   │   └── ... (all 13 rules)
 │   ├── rules/
-│   │   └── all_13_rules.txt       # 13 Elastic Detection Rules (KQL, EQL, Threshold, Correlation)
+│   │   └── all_13_rules.txt       # Elastic KQL/EQL implementation guides
 │   ├── elastic_ml/
 │   │   └── elastic_ml_anomaly_jobs.txt # 3 Elastic Machine Learning Anomaly Detection Jobs
 │   └── kibana_dashboard/
@@ -39,12 +51,12 @@ Linux-EDR-Evasion-io_uring/
 │   ├── presentation/
 │   │   ├── PSB7030CE_DO-DINH-HUY-HOANG.pptx # 27-slide defense presentation
 │   │   └── defense_presentation_script.txt  # Slide-by-slide defense script
-│   └── architecture/              # Diagrams and telemetry matrix
+│   └── architecture/              # Telemetry matrices and design documentation
 ├── demo/
 │   ├── attack_execution_guide.txt # Step-by-step experiment reproduction guide
 │   └── README.md                  # Video demo guidance & Release asset links
-├── .gitignore                     # Git ignore rules for binaries and temporary artifacts
-└── README.md                      # Comprehensive lab documentation
+├── .gitignore
+└── README.md
 ```
 
 ---
@@ -62,21 +74,54 @@ Traditional Linux EDRs place eBPF kprobes and tracepoints on syscall entry point
 
 ---
 
-## 🚀 Quick Start & Compilation
+## 🗺️ MITRE ATT&CK & MITRE D3FEND Mapping Matrix
+
+| Phase | Adversary Technique (ATT&CK) | Technique ID | Defensive Countermeasure (D3FEND) | Detection Artifact |
+| :--- | :--- | :--- | :--- | :--- |
+| **Phase 1** | Hijack Execution Flow | `T1574.006` | System Call Analysis (`d3f:SystemCallAnalysis`) | Sigma Rule 1 (`io_uring_setup`), ML Job 1 |
+| **Phase 2** | Non-Application Layer Protocol | `T1095` | Network Traffic Analysis (`d3f:InboundTrafficFiltering`) | ML Job 2 (Rare socket anomalies) |
+| **Phase 3a** | Impair Defenses: Disable Tools | `T1562.001` | File Integrity Monitoring (`d3f:FileIntegrityMonitoring`) | Sigma Rule 5 (`tracing_on` tamper) |
+| **Phase 3b** | Impair Defenses: Disable Sensor | `T1562.001` | Process Telemetry Verification | Sigma Rule 6 (`/sys/fs/bpf/*` unpinned) |
+| **Phase 3c** | Impair Defenses: Terminate EDR | `T1562.001` | Process Termination Prevention | Sigma Rule 7 (Signals to EDR) |
+| **Phase 4** | OS Credential Dumping | `T1003.008` | File Access Monitoring (`d3f:FileAccessPatternAnalysis`) | Sigma Rule 8 (`/etc/shadow`), ML Job 3 |
+| **Phase 5** | Hijack Execution: Dynamic Linker | `T1574.006` | File Integrity Monitoring (`d3f:FileIntegrityMonitoring`) | Sigma Rule 4 (`ld.so.preload`) |
+| **Phase 5** | Indicator Removal: File Deletion | `T1070.004` | Audit Log Ingestion (`d3f:ProcessLineageAnalysis`) | Sigma Rule 10 (Self-unlinking) |
+
+---
+
+## 🐳 One-Click Docker Laboratory Setup
+
+The repository includes a containerized laboratory environment for immediate testing without modifying host OS packages:
+
+```bash
+# Clone the repository
+git clone https://github.com/Hoang456-crush/Linux-EDR-Evasion-io_uring.git
+cd Linux-EDR-Evasion-io_uring
+
+# Build and start container environment
+docker compose up -d
+
+# Drop into the interactive testing shell
+docker compose exec evasion-lab bash
+
+# Run the benchmark assessment
+./evasion_lab --mode benchmark
+```
+
+---
+
+## 🚀 Native Compilation & Quick Start
 
 ### Prerequisites
 * Linux distribution with Kernel 5.1+ (Tested on Ubuntu 22.04 LTS / 24.04 LTS)
 * Build tools: `gcc`, `make`, `liburing-dev`
 
 ```bash
-# On Ubuntu / Debian
+# Install dependencies
 sudo apt update && sudo apt install -y build-essential liburing-dev
 
-# Clone repository
-git clone https://github.com/Hoang456-crush/Linux-EDR-Evasion-io_uring.git
-cd Linux-EDR-Evasion-io_uring/src
-
 # Compile modular framework
+cd src
 make
 ```
 
@@ -132,18 +177,23 @@ Safety & Environment:
 
 ---
 
-## 🛡️ Detection Engineering (Blue Team)
+## 🛡️ Detection Engineering (13 Sigma Rules)
 
-The repository provides 13 custom detection rules and 3 Machine Learning configurations:
+All detection rules are packaged in [detections/sigma/](detections/sigma/) and follow the industry-standard Sigma format:
 
-1. **Chokepoint Rule 1 (KQL)**: Detection of `io_uring_setup` system calls.
-2. **Rules 2–3 (EQL)**: Dynamic linker injection (`LD_PRELOAD`, `LD_AUDIT`).
-3. **Rule 4 (KQL)**: Persistence targeting `/etc/ld.so.preload`.
-4. **Rules 5–7**: Defense suppression detection (kernel tracing disabled, BPF maps unpinned, EDR agent termination).
-5. **Rule 8 (EQL)**: Credential file exfiltration (`/etc/shadow`, `/etc/sudoers`).
-6. **Rules 9–10**: Shell persistence and asynchronous binary self-deletion.
-7. **Rule 11 (Threshold)**: High-frequency burst of `io_uring_enter` calls.
-8. **Rules 12–13 (Correlation)**: REAPER multi-phase kill-chain and Double Evasion meta-alerts.
+* [`sys_iouring_setup_chokepoint.yml`](detections/sigma/sys_iouring_setup_chokepoint.yml): Audit `io_uring_setup` entry chokepoint.
+* [`lnx_ld_preload_injection.yml`](detections/sigma/lnx_ld_preload_injection.yml): Dynamic linker hook detection.
+* [`lnx_ld_audit_interception.yml`](detections/sigma/lnx_ld_audit_interception.yml): LD_AUDIT abuse detection.
+* [`lnx_persistence_ld_so_preload.yml`](detections/sigma/lnx_persistence_ld_so_preload.yml): Preload file integrity tampering.
+* [`lnx_reaper_kernel_tracing_disabled.yml`](detections/sigma/lnx_reaper_kernel_tracing_disabled.yml): Kernel debug tracing disabling.
+* [`lnx_reaper_bpf_maps_unpinned.yml`](detections/sigma/lnx_reaper_bpf_maps_unpinned.yml): Deletion of `/sys/fs/bpf/*` maps.
+* [`lnx_reaper_edr_agent_killed.yml`](detections/sigma/lnx_reaper_edr_agent_killed.yml): Signal termination targeted at EDR agents.
+* [`lnx_sensitive_credential_access.yml`](detections/sigma/lnx_sensitive_credential_access.yml): Anomalous shadow access.
+* [`lnx_persistence_shell_profile.yml`](detections/sigma/lnx_persistence_shell_profile.yml): Shell configuration modifications.
+* [`lnx_binary_self_deletion.yml`](detections/sigma/lnx_binary_self_deletion.yml): Asynchronous self-unlinking detection.
+* [`lnx_iouring_burst_threshold.yml`](detections/sigma/lnx_iouring_burst_threshold.yml): Threshold on `io_uring_enter` bursts.
+* [`lnx_reaper_attack_chain_correlation.yml`](detections/sigma/lnx_reaper_attack_chain_correlation.yml): Multi-phase defense suppression correlation.
+* [`lnx_double_evasion_meta_rule.yml`](detections/sigma/lnx_double_evasion_meta_rule.yml): High-severity meta-alert.
 
 ---
 

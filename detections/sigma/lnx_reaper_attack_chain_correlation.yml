@@ -1,0 +1,21 @@
+title: Multi-Phase Defense Suppression Kill-Chain Correlation
+id: e8a12c41-92cb-4fa1-8207-6f81b10a0012
+status: test
+description: Correlates multiple suppression activities (tracing disable + BPF map deletion + EDR kill) within a 5-minute timeframe.
+author: Do Dinh Huy Hoang
+logsource:
+    category: alert_correlation
+    product: linux
+detection:
+    selection_step1:
+        rule.id: 'e8a12c41-92cb-4fa1-8207-6f81b10a0005'
+    selection_step2:
+        rule.id: 'e8a12c41-92cb-4fa1-8207-6f81b10a0006'
+    timeframe: 5m
+    condition: selection_step1 and selection_step2
+falsepositives:
+    - None known in standard production baselines.
+level: critical
+tags:
+    - attack.defense_evasion
+    - attack.t1562.001

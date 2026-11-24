@@ -1,0 +1,19 @@
+title: High-Frequency io_uring_enter Syscall Burst
+id: e8a12c41-92cb-4fa1-8207-6f81b10a0011
+status: experimental
+description: Detects rapid bursts of io_uring_enter submissions exceeding normal baseline thresholds within short time windows.
+author: Do Dinh Huy Hoang
+logsource:
+    category: system_call
+    product: linux
+detection:
+    selection:
+        syscall: 'io_uring_enter'
+    timeframe: 1m
+    condition: selection | count() by process.entity_id > 100
+falsepositives:
+    - Heavy I/O benchmark applications (e.g. fio).
+level: medium
+tags:
+    - attack.defense_evasion
+    - attack.t1574

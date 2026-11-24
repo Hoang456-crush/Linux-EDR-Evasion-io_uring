@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  evasion-lab:
+    build: .
+    container_name: evasion_lab_sandbox
+    privileged: true
+    cap_add:
+      - SYS_ADMIN
+      - SYS_PTRACE
+    stdin_open: true
+    tty: true
+    volumes:
+      - .:/workspace
+    working_dir: /workspace/src
+    command: /bin/bash

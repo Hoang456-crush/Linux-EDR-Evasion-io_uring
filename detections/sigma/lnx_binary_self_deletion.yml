@@ -1,0 +1,22 @@
+title: Suspicious Binary Self-Unlinking After Execution
+id: e8a12c41-92cb-4fa1-8207-6f81b10a0010
+status: test
+description: Detects processes that immediately unlink or delete their own executing binary from disk to evade forensic collection.
+author: Do Dinh Huy Hoang
+logsource:
+    category: file_event
+    product: linux
+detection:
+    selection:
+        event.action: 'deleted'
+        file.path|endswith:
+            - 'evasion_ops'
+            - 'evasion_lab'
+            - 'evil.so'
+    condition: selection
+falsepositives:
+    - Self-updating utilities or temporary installers.
+level: high
+tags:
+    - attack.defense_evasion
+    - attack.t1070.004
